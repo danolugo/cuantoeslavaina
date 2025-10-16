@@ -1,12 +1,4 @@
 {
-  "functions": {
-    "src/app/api/rates/route.ts": {
-      "runtime": "edge"
-    },
-    "src/app/api/health/route.ts": {
-      "runtime": "edge"
-    }
-  },
   "headers": [
     {
       "source": "/api/(.*)",
