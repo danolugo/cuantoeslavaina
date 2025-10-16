@@ -1,0 +1,21 @@
+{
+  "functions": {
+    "src/app/api/rates/route.ts": {
+      "runtime": "edge"
+    },
+    "src/app/api/health/route.ts": {
+      "runtime": "edge"
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=3600, s-maxage=3600"
+        }
+      ]
+    }
+  ]
+}
