@@ -77,13 +77,22 @@ export default function HomePage() {
           <div className="text-center space-y-6">
             <div>
               <p className="text-slate-300 text-sm font-medium mb-2">Enter Amount</p>
-              <div className="text-6xl font-bold tracking-tight mb-4">
-                {new Intl.NumberFormat('es-VE', {
-                  style: 'currency',
-                  currency: baseCurrency === 'VES' ? 'VES' : baseCurrency === 'COP' ? 'COP' : baseCurrency,
-                  minimumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
-                  maximumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
-                }).format(amount)}
+              <div className="font-bold tracking-tight mb-4 break-all overflow-hidden min-h-[4rem] flex items-center justify-center">
+                <div 
+                  className="text-center leading-none"
+                  style={{
+                    fontSize: `clamp(1.5rem, 8vw, 4rem)`,
+                    wordBreak: 'break-all',
+                    overflowWrap: 'anywhere'
+                  }}
+                >
+                  {new Intl.NumberFormat('es-VE', {
+                    style: 'currency',
+                    currency: baseCurrency === 'VES' ? 'VES' : baseCurrency === 'COP' ? 'COP' : baseCurrency,
+                    minimumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
+                    maximumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
+                  }).format(amount)}
+                </div>
               </div>
             </div>
             
