@@ -2,11 +2,32 @@
   "sortedMiddleware": [],
   "middleware": {},
   "functions": {
+    "/api/health/route": {
+      "files": [
+        "server/middleware-build-manifest.js",
+        "server/middleware-react-loadable-manifest.js",
+        "server/next-font-manifest.js",
+        "prerender-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/app/api/health/route.js"
+      ],
+      "name": "app/api/health/route",
+      "page": "/api/health/route",
+      "matchers": [
+        {
+          "regexp": "^/api/health$",
+          "originalSource": "/api/health"
+        }
+      ],
+      "wasm": [],
+      "assets": []
+    },
     "/api/rates/route": {
       "files": [
         "server/middleware-build-manifest.js",
         "server/middleware-react-loadable-manifest.js",
         "server/next-font-manifest.js",
+        "prerender-manifest.js",
         "server/edge-runtime-webpack.js",
         "server/app/api/rates/route.js"
       ],

@@ -61,7 +61,11 @@ export default function HomePage() {
     const amountA = convert(amount, baseCurrency, a, rates.rates)
     const amountB = convert(amount, baseCurrency, b, rates.rates)
     
-    return amountB - amountA
+    // Handle null values by treating them as 0 for sorting
+    const valueA = amountA ?? 0
+    const valueB = amountB ?? 0
+    
+    return valueB - valueA
   })
 
   const renderConverterTab = () => (

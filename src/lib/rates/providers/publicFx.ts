@@ -171,8 +171,9 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
   
   // Collect all successful rates
   results.forEach((result) => {
-    if (result.status === 'fulfilled' && result.value.success) {
-      allRates.push(...result.value.rates)
+    if (result.status === 'fulfilled' && result.value.success && result.value.rates) {
+      const ratesArray = Object.values(result.value.rates).filter((rate): rate is Rate => rate !== undefined)
+      allRates.push(...ratesArray)
     } else if (result.status === 'rejected') {
       errors.push(result.reason?.message || 'Unknown error')
     }
