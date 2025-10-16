@@ -2,6 +2,8 @@ import { Currency, Rate, RatesBundle } from './types'
 import { getBCVRates } from './providers/bcv'
 import { getFrankfurterRates } from './providers/frankfurter'
 import { getPublicFxRates } from './providers/publicFx'
+import { getAlternativeVESRates } from './providers/alternativeVes'
+import { getColombianPesoRates } from './providers/colombianPeso'
 
 export function createRateKey(base: Currency, quote: Currency): string {
   return `${base}-${quote}`
@@ -52,10 +54,12 @@ export async function composeRates(): Promise<RatesBundle> {
   const providerNotes: string[] = []
   
   // Fetch from all providers in parallel
-  const [bcvResult, frankfurterResult, publicFxResult] = await Promise.allSettled([
+  const [bcvResult, frankfurterResult, publicFxResult, alternativeVesResult, colombianPesoResult] = await Promise.allSettled([
     getBCVRates(),
     getFrankfurterRates(),
-    getPublicFxRates()
+    getPublicFxRates(),
+    getAlternativeVESRates(),
+    getColombianPesoRates()
   ])
   
   // Process BCV results
@@ -63,7 +67,8 @@ export async function composeRates(): Promise<RatesBundle> {
     Object.assign(allRates, bcvResult.value.rates)
     providerNotes.push(`BCV: ${Object.keys(bcvResult.value.rates).length} rates`)
   } else {
-    providerNotes.push('BCV: Unavailable')
+    const error = bcvResult.status === 'rejected' ? bcvResult.reason?.message : bcvResult.value?.error
+    providerNotes.push(`BCV: Failed (${error})`)
   }
   
   // Process Frankfurter results
@@ -71,7 +76,8 @@ export async function composeRates(): Promise<RatesBundle> {
     Object.assign(allRates, frankfurterResult.value.rates)
     providerNotes.push(`Frankfurter: ${Object.keys(frankfurterResult.value.rates).length} rates`)
   } else {
-    providerNotes.push('Frankfurter: Unavailable')
+    const error = frankfurterResult.status === 'rejected' ? frankfurterResult.reason?.message : frankfurterResult.value?.error
+    providerNotes.push(`Frankfurter: Failed (${error})`)
   }
   
   // Process Public FX results
@@ -79,7 +85,26 @@ export async function composeRates(): Promise<RatesBundle> {
     Object.assign(allRates, publicFxResult.value.rates)
     providerNotes.push(`PublicFX: ${Object.keys(publicFxResult.value.rates).length} rates`)
   } else {
-    providerNotes.push('PublicFX: Unavailable')
+    const error = publicFxResult.status === 'rejected' ? publicFxResult.reason?.message : publicFxResult.value?.error
+    providerNotes.push(`PublicFX: Failed (${error})`)
+  }
+  
+  // Process Alternative VES results
+  if (alternativeVesResult.status === 'fulfilled' && alternativeVesResult.value.success) {
+    Object.assign(allRates, alternativeVesResult.value.rates)
+    providerNotes.push(`Alternative-VES: ${Object.keys(alternativeVesResult.value.rates).length} rates`)
+  } else {
+    const error = alternativeVesResult.status === 'rejected' ? alternativeVesResult.reason?.message : alternativeVesResult.value?.error
+    providerNotes.push(`Alternative-VES: Failed (${error})`)
+  }
+  
+  // Process Colombian Peso results
+  if (colombianPesoResult.status === 'fulfilled' && colombianPesoResult.value.success) {
+    Object.assign(allRates, colombianPesoResult.value.rates)
+    providerNotes.push(`Colombian-Peso: ${Object.keys(colombianPesoResult.value.rates).length} rates`)
+  } else {
+    const error = colombianPesoResult.status === 'rejected' ? colombianPesoResult.reason?.message : colombianPesoResult.value?.error
+    providerNotes.push(`Colombian-Peso: Failed (${error})`)
   }
   
   // Add inverse rates for all direct rates
@@ -88,6 +113,53 @@ export async function composeRates(): Promise<RatesBundle> {
     const inverseKey = createRateKey(rate.quote, rate.base)
     if (!allRates[inverseKey]) {
       allRates[inverseKey] = getInverseRate(rate)
+    }
+  }
+  
+  // Ensure we always have essential rates
+  const essentialRates = ['USD-VES', 'USD-COP', 'EUR-USD']
+  const missingEssential = essentialRates.filter(rate => !allRates[rate])
+  
+  if (missingEssential.length > 0) {
+    providerNotes.push(`Adding fallback rates for: ${missingEssential.join(', ')}`)
+  }
+  
+  // Add fallback rates if we have very few rates
+  if (Object.keys(allRates).length < 4) {
+    providerNotes.push('Using fallback rates due to limited data')
+    
+    // Add some reasonable fallback rates for testing
+    if (!allRates['USD-VES']) {
+      allRates['USD-VES'] = {
+        base: 'USD',
+        quote: 'VES',
+        value: 195.0, // Updated approximate rate (October 2024)
+        provider: 'Fallback',
+        at: new Date().toISOString()
+      }
+      allRates['VES-USD'] = getInverseRate(allRates['USD-VES'])
+    }
+    
+    if (!allRates['USD-COP']) {
+      allRates['USD-COP'] = {
+        base: 'USD',
+        quote: 'COP',
+        value: 4200.0, // Updated approximate rate (October 2024)
+        provider: 'Fallback',
+        at: new Date().toISOString()
+      }
+      allRates['COP-USD'] = getInverseRate(allRates['USD-COP'])
+    }
+    
+    if (!allRates['EUR-USD']) {
+      allRates['EUR-USD'] = {
+        base: 'EUR',
+        quote: 'USD',
+        value: 1.08, // Approximate rate (October 2024)
+        provider: 'Fallback',
+        at: new Date().toISOString()
+      }
+      allRates['USD-EUR'] = getInverseRate(allRates['EUR-USD'])
     }
   }
   
@@ -117,6 +189,33 @@ export async function composeRates(): Promise<RatesBundle> {
     }
   }
   
+  // Ensure EUR cross pairs exist for display
+  if (!allRates['EUR-VES']) {
+    const eurUsd = allRates['EUR-USD']
+    const usdVes = allRates['USD-VES']
+    if (eurUsd && usdVes) {
+      const crossRate = computeCrossRate(eurUsd, usdVes, 'EUR', 'VES')
+      if (crossRate) {
+        allRates['EUR-VES'] = crossRate
+        allRates['VES-EUR'] = getInverseRate(crossRate)
+        providerNotes.push('EUR-VES: Computed via EUR-USD × USD-VES')
+      }
+    }
+  }
+
+  if (!allRates['EUR-COP']) {
+    const eurUsd = allRates['EUR-USD']
+    const usdCop = allRates['USD-COP']
+    if (eurUsd && usdCop) {
+      const crossRate = computeCrossRate(eurUsd, usdCop, 'EUR', 'COP')
+      if (crossRate) {
+        allRates['EUR-COP'] = crossRate
+        allRates['COP-EUR'] = getInverseRate(crossRate)
+        providerNotes.push('EUR-COP: Computed via EUR-USD × USD-COP')
+      }
+    }
+  }
+  
   return allRates
 }
 
@@ -135,7 +234,7 @@ export function convert(
     return roundToSignificantDigits(amount * directRate.value, 8)
   }
   
-  // Try cross conversion via USD
+  // Try cross conversion via USD (most reliable base currency)
   const fromUsdKey = createRateKey(from, 'USD')
   const usdToKey = createRateKey('USD', to)
   
@@ -151,6 +250,39 @@ export function convert(
   if (rates[fromEurKey] && rates[eurToKey]) {
     const viaEur = amount * rates[fromEurKey].value * rates[eurToKey].value
     return roundToSignificantDigits(viaEur, 8)
+  }
+  
+  // Try cross conversion via COP (for VES-COP specifically)
+  if (from === 'VES' && to === 'COP') {
+    const vesUsdKey = createRateKey('VES', 'USD')
+    const usdCopKey = createRateKey('USD', 'COP')
+    
+    if (rates[vesUsdKey] && rates[usdCopKey]) {
+      const viaUsd = amount * rates[vesUsdKey].value * rates[usdCopKey].value
+      return roundToSignificantDigits(viaUsd, 8)
+    }
+  }
+  
+  if (from === 'COP' && to === 'VES') {
+    const copUsdKey = createRateKey('COP', 'USD')
+    const usdVesKey = createRateKey('USD', 'VES')
+    
+    if (rates[copUsdKey] && rates[usdVesKey]) {
+      const viaUsd = amount * rates[copUsdKey].value * rates[usdVesKey].value
+      return roundToSignificantDigits(viaUsd, 8)
+    }
+  }
+  
+  // Try multi-hop conversion: VES -> USD -> EUR -> Target
+  if (from === 'VES' && (to === 'EUR' || to === 'COP')) {
+    const vesUsdKey = createRateKey('VES', 'USD')
+    const usdEurKey = createRateKey('USD', 'EUR')
+    const eurTargetKey = createRateKey('EUR', to)
+    
+    if (rates[vesUsdKey] && rates[usdEurKey] && rates[eurTargetKey]) {
+      const viaUsdEur = amount * rates[vesUsdKey].value * rates[usdEurKey].value * rates[eurTargetKey].value
+      return roundToSignificantDigits(viaUsdEur, 8)
+    }
   }
   
   return null

@@ -1,119 +1,194 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
 
-export async function getBCVRates(): Promise<ProviderResult> {
-  try {
-    // Try to fetch from BCV API first
-    const apiUrl = process.env.BCV_ENDPOINT || 'https://www.bcv.org.ve/api/exchange'
-    
+// Alternative sources for VES rates
+const VES_SOURCES = [
+  {
+    name: 'BCV Official',
+    url: 'https://www.bcv.org.ve/',
+    parseHtml: true
+  },
+  {
+    name: 'DolarToday',
+    url: 'https://dolartoday.com/',
+    parseHtml: true
+  },
+  {
+    name: 'Monitor Dolar',
+    url: 'https://monitordolarvzla.com/',
+    parseHtml: true
+  }
+]
+
+async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
+  for (let i = 0; i < retries; i++) {
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetch(url, {
+        ...options,
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; CurrencyConverter/1.0)',
-        },
-        next: { revalidate: 3600 }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+          ...options.headers
+        }
       })
       
       if (response.ok) {
-        const data = await response.json()
-        
-        // Parse BCV API response format
-        const rates: Partial<RatesBundle> = {}
-        
-        if (data.USD && data.USD.rate) {
-          rates['USD-VES'] = {
-            base: 'USD',
-            quote: 'VES',
-            value: parseFloat(data.USD.rate),
-            provider: 'BCV',
-            at: new Date().toISOString()
-          }
-        }
-        
-        if (data.EUR && data.EUR.rate) {
-          rates['EUR-VES'] = {
-            base: 'EUR',
-            quote: 'VES',
-            value: parseFloat(data.EUR.rate),
-            provider: 'BCV',
-            at: new Date().toISOString()
-          }
-        }
-        
-        if (Object.keys(rates).length > 0) {
-          return {
-            rates,
-            provider: 'BCV',
-            success: true
-          }
-        }
+        return response
       }
-    } catch (apiError) {
-      console.warn('BCV API failed, trying HTML parsing:', apiError)
+    } catch (error) {
+      console.warn(`Attempt ${i + 1} failed for ${url}:`, error)
+      if (i === retries - 1) throw error
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
     }
-    
-    // Fallback: Parse BCV HTML page
-    const htmlUrl = 'https://www.bcv.org.ve/'
-    const response = await fetch(htmlUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; CurrencyConverter/1.0)',
-      },
-      next: { revalidate: 3600 }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`BCV HTML fetch failed: ${response.status}`)
-    }
-    
-    const html = await response.text()
-    const rates: Partial<RatesBundle> = {}
-    
-    // Parse USD rate from HTML
-    const usdMatch = html.match(/USD\s*=\s*Bs\.?\s*([\d,\.]+)/i)
-    if (usdMatch) {
-      const usdRate = parseFloat(usdMatch[1].replace(/,/g, ''))
-      if (!isNaN(usdRate) && usdRate > 0) {
+  }
+  throw new Error('All retry attempts failed')
+}
+
+function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
+  const rates: Partial<RatesBundle> = {}
+  
+  // Multiple patterns to try for USD/VES
+  const usdPatterns = [
+    /USD\s*=\s*Bs\.?\s*([\d,\.]+)/i,
+    /Dólar\s*=\s*Bs\.?\s*([\d,\.]+)/i,
+    /USD\s*Bs\.?\s*([\d,\.]+)/i,
+    /Dólar\s*Bs\.?\s*([\d,\.]+)/i,
+    /1\s*USD\s*=\s*([\d,\.]+)\s*Bs/i,
+    /1\s*Dólar\s*=\s*([\d,\.]+)\s*Bs/i
+  ]
+  
+  for (const pattern of usdPatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const rate = parseFloat(match[1].replace(/,/g, ''))
+      if (!isNaN(rate) && rate > 0 && rate < 1000000) { // Sanity check
         rates['USD-VES'] = {
           base: 'USD',
           quote: 'VES',
-          value: usdRate,
-          provider: 'BCV',
+          value: rate,
+          provider: source,
           at: new Date().toISOString()
         }
+        break
       }
     }
-    
-    // Parse EUR rate from HTML
-    const eurMatch = html.match(/EUR\s*=\s*Bs\.?\s*([\d,\.]+)/i)
-    if (eurMatch) {
-      const eurRate = parseFloat(eurMatch[1].replace(/,/g, ''))
-      if (!isNaN(eurRate) && eurRate > 0) {
+  }
+  
+  // Multiple patterns for EUR/VES
+  const eurPatterns = [
+    /EUR\s*=\s*Bs\.?\s*([\d,\.]+)/i,
+    /Euro\s*=\s*Bs\.?\s*([\d,\.]+)/i,
+    /EUR\s*Bs\.?\s*([\d,\.]+)/i,
+    /Euro\s*Bs\.?\s*([\d,\.]+)/i,
+    /1\s*EUR\s*=\s*([\d,\.]+)\s*Bs/i,
+    /1\s*Euro\s*=\s*([\d,\.]+)\s*Bs/i
+  ]
+  
+  for (const pattern of eurPatterns) {
+    const match = html.match(pattern)
+    if (match) {
+      const rate = parseFloat(match[1].replace(/,/g, ''))
+      if (!isNaN(rate) && rate > 0 && rate < 1000000) {
         rates['EUR-VES'] = {
           base: 'EUR',
           quote: 'VES',
-          value: eurRate,
-          provider: 'BCV',
+          value: rate,
+          provider: source,
           at: new Date().toISOString()
         }
+        break
       }
     }
-    
-    if (Object.keys(rates).length === 0) {
-      throw new Error('No valid rates found in BCV response')
+  }
+  
+  return rates
+}
+
+export async function getBCVRates(): Promise<ProviderResult> {
+  const allRates: Rate[] = []
+  const errors: string[] = []
+  
+  // Try multiple sources in parallel
+  const sourcePromises = VES_SOURCES.map(async (source) => {
+    try {
+      const response = await fetchWithRetry(source.url, {
+        next: { revalidate: 3600 }
+      })
+      
+      const html = await response.text()
+      const rates = parseVESFromHTML(html, source.name)
+      
+      return {
+        source: source.name,
+        rates: Object.values(rates),
+        success: true
+      }
+    } catch (error) {
+      console.warn(`${source.name} failed:`, error)
+      return {
+        source: source.name,
+        rates: [],
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
     }
-    
-    return {
-      rates,
-      provider: 'BCV',
-      success: true
+  })
+  
+  const results = await Promise.allSettled(sourcePromises)
+  
+  // Collect all successful rates
+  results.forEach((result) => {
+    if (result.status === 'fulfilled' && result.value.success) {
+      allRates.push(...result.value.rates)
+    } else if (result.status === 'rejected') {
+      errors.push(result.reason?.message || 'Unknown error')
     }
-    
-  } catch (error) {
-    console.error('BCV provider error:', error)
+  })
+  
+  if (allRates.length === 0) {
     return {
       rates: {},
-      provider: 'BCV',
+      provider: 'BCV-Multiple',
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown BCV error'
+      error: `All sources failed: ${errors.join(', ')}`
     }
+  }
+  
+  // Average rates from multiple sources
+  const averagedRates: Partial<RatesBundle> = {}
+  
+  // Group rates by currency pair
+  const usdVesRates = allRates.filter(r => r.base === 'USD' && r.quote === 'VES')
+  const eurVesRates = allRates.filter(r => r.base === 'EUR' && r.quote === 'VES')
+  
+  if (usdVesRates.length > 0) {
+    const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
+    averagedRates['USD-VES'] = {
+      base: 'USD',
+      quote: 'VES',
+      value: avgUsdVes,
+      provider: `Average of ${usdVesRates.length} sources`,
+      at: new Date().toISOString()
+    }
+  }
+  
+  if (eurVesRates.length > 0) {
+    const avgEurVes = eurVesRates.reduce((sum, r) => sum + r.value, 0) / eurVesRates.length
+    averagedRates['EUR-VES'] = {
+      base: 'EUR',
+      quote: 'VES',
+      value: avgEurVes,
+      provider: `Average of ${eurVesRates.length} sources`,
+      at: new Date().toISOString()
+    }
+  }
+  
+  return {
+    rates: averagedRates,
+    provider: 'BCV-Multiple',
+    success: true
   }
 }

@@ -1,0 +1,26 @@
+{
+  "sortedMiddleware": [],
+  "middleware": {},
+  "functions": {
+    "/api/rates/route": {
+      "files": [
+        "server/middleware-build-manifest.js",
+        "server/middleware-react-loadable-manifest.js",
+        "server/next-font-manifest.js",
+        "server/edge-runtime-webpack.js",
+        "server/app/api/rates/route.js"
+      ],
+      "name": "app/api/rates/route",
+      "page": "/api/rates/route",
+      "matchers": [
+        {
+          "regexp": "^/api/rates$",
+          "originalSource": "/api/rates"
+        }
+      ],
+      "wasm": [],
+      "assets": []
+    }
+  },
+  "version": 2
+}
