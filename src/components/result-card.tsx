@@ -19,11 +19,11 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
   
   if (isLoading) {
     return (
-      <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900">
+      <Card className="border border-border bg-card shadow-sm">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-muted animate-pulse"></div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-muted animate-pulse"></div>
               <div className="space-y-2">
                 <div className="h-4 bg-muted animate-pulse rounded w-16"></div>
                 <div className="h-3 bg-muted animate-pulse rounded w-12"></div>
@@ -42,20 +42,20 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
   
   if (!rate) {
     return (
-      <Card className="relative overflow-hidden border-0 shadow-lg bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border-red-200 dark:border-red-800">
+      <Card className="border border-destructive/30 bg-destructive/5 shadow-sm">
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center space-x-3">
-              <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-destructive/10 flex items-center justify-center">
                 <span className="text-lg">{info.flag}</span>
               </div>
               <div>
                 <div className="font-semibold text-foreground text-sm">{currency}</div>
-                <div className="text-xs text-red-600 dark:text-red-400">Rate unavailable</div>
+                <div className="text-xs text-destructive">Rate unavailable</div>
               </div>
             </div>
-            <div className="w-6 h-6 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
-              <Minus className="w-4 h-4 text-red-600 dark:text-red-400" />
+            <div className="w-6 h-6 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Minus className="w-4 h-4 text-destructive" />
             </div>
           </div>
         </div>
@@ -73,12 +73,11 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
   const trendValue = (Math.random() * 2).toFixed(2)
   
   return (
-    <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-white to-slate-50 dark:from-slate-800 dark:to-slate-900 hover:scale-[1.01]">
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-accent/5 opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
-      <div className="relative p-4">
+    <Card className="border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
+      <div className="p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary/10 to-accent/10 flex items-center justify-center">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
               <span className="text-lg">{info.flag}</span>
             </div>
             <div>
@@ -86,39 +85,39 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
               <div className="text-xs text-muted-foreground">{info.name}</div>
             </div>
           </div>
-          <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+          <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
             trend === 'up' 
-              ? 'bg-green-100 dark:bg-green-900/50' 
-              : 'bg-red-100 dark:bg-red-900/50'
+              ? 'bg-green-500/10' 
+              : 'bg-red-500/10'
           }`}>
             {trend === 'up' ? (
-              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-400" />
+              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-500" />
             ) : (
-              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-400" />
+              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-500" />
             )}
           </div>
         </div>
         
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <div className="text-2xl font-bold text-foreground tracking-tight">
             {formattedAmount}
           </div>
           
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <span className="font-medium">{rateText}</span>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Info className="h-3 w-3 cursor-help hover:text-foreground transition-colors" />
+                    <Info className="h-3.5 w-3.5 cursor-help hover:text-foreground transition-colors" />
                   </TooltipTrigger>
-                  <TooltipContent className="bg-slate-900 text-white border-0 shadow-xl">
-                    <div className="space-y-1">
+                  <TooltipContent className="bg-card border border-border shadow-lg">
+                    <div className="space-y-1.5">
                       <p className="font-medium text-sm">Source: {rate.provider}</p>
                       {rate.provider.includes('+') && (
-                        <p className="text-xs text-slate-300">Cross-conversion</p>
+                        <p className="text-xs text-muted-foreground">Cross-conversion</p>
                       )}
-                      <p className="text-xs text-slate-300">
+                      <p className="text-xs text-muted-foreground">
                         Updated: {new Date(rate.at).toLocaleString()}
                       </p>
                     </div>
@@ -127,10 +126,10 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
               </TooltipProvider>
             </div>
             
-            <div className={`text-sm font-medium ${
+            <div className={`text-xs font-semibold ${
               trend === 'up' 
-                ? 'text-green-600 dark:text-green-400' 
-                : 'text-red-600 dark:text-red-400'
+                ? 'text-green-600 dark:text-green-500' 
+                : 'text-red-600 dark:text-red-500'
             }`}>
               {trend === 'up' ? '+' : '-'}{trendValue}%
             </div>

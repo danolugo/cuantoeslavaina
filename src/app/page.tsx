@@ -70,19 +70,18 @@ export default function HomePage() {
   })
 
   const renderConverterTab = () => (
-    <div className="space-y-4">
-      {/* Main Amount Input - The Protagonist */}
-      <Card className="relative overflow-hidden border-0 shadow-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20"></div>
-        <div className="relative p-8">
-          <div className="text-center space-y-6">
-            <div>
-              <p className="text-slate-300 text-sm font-medium mb-2">Enter Amount</p>
-              <div className="font-bold tracking-tight mb-4 break-all overflow-hidden min-h-[4rem] flex items-center justify-center">
+    <div className="space-y-4 pb-4">
+      {/* Main Amount Display */}
+      <Card className="border border-border bg-card shadow-sm">
+        <CardContent className="p-6">
+          <div className="space-y-6">
+            <div className="text-center">
+              <p className="text-sm text-muted-foreground mb-3 font-medium">Amount</p>
+              <div className="font-bold tracking-tight break-all overflow-hidden min-h-[3.5rem] flex items-center justify-center">
                 <div 
-                  className="text-center leading-none"
+                  className="text-center leading-none text-foreground"
                   style={{
-                    fontSize: `clamp(1.5rem, 8vw, 4rem)`,
+                    fontSize: `clamp(2rem, 10vw, 3.5rem)`,
                     wordBreak: 'break-all',
                     overflowWrap: 'anywhere'
                   }}
@@ -98,7 +97,7 @@ export default function HomePage() {
             </div>
             
             {/* Currency Selection */}
-            <div className="max-w-xs mx-auto">
+            <div>
               <CurrencySelect
                 value={baseCurrency}
                 onChange={setBaseCurrency}
@@ -107,14 +106,15 @@ export default function HomePage() {
             </div>
             
             {/* Buy/Sell Toggle */}
-            <div className="max-w-xs mx-auto">
-              <div className="flex items-center justify-center space-x-2 bg-white/10 dark:bg-black/20 rounded-lg p-1">
+            <div>
+              <p className="text-sm text-muted-foreground mb-2 font-medium">Exchange Type</p>
+              <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
                 <Button
                   variant={exchangeMode === 'buy' ? 'default' : 'ghost'}
                   size="sm"
                   onClick={() => setExchangeMode('buy')}
                   disabled={isLoading}
-                  className={`flex-1 ${exchangeMode === 'buy' ? 'bg-primary text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                  className={`flex-1 h-10 font-medium ${exchangeMode === 'buy' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
                 >
                   Buy
                 </Button>
@@ -123,7 +123,7 @@ export default function HomePage() {
                   size="sm"
                   onClick={() => setExchangeMode('sell')}
                   disabled={isLoading}
-                  className={`flex-1 ${exchangeMode === 'sell' ? 'bg-primary text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                  className={`flex-1 h-10 font-medium ${exchangeMode === 'sell' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
                 >
                   Sell
                 </Button>
@@ -131,7 +131,7 @@ export default function HomePage() {
             </div>
             
             {/* Amount Input */}
-            <div className="max-w-xs mx-auto">
+            <div>
               <AmountInput
                 value={amount}
                 onChange={setAmount}
@@ -140,58 +140,54 @@ export default function HomePage() {
               />
             </div>
           </div>
-        </div>
+        </CardContent>
       </Card>
 
-      {/* Action Button */}
-      <div className="flex justify-center">
-        <Button 
-          variant="secondary" 
-          size="lg" 
-          className="h-14 px-8 bg-white/10 hover:bg-white/20 text-white border-white/20 backdrop-blur-sm rounded-xl"
-          onClick={handleRefresh}
-          disabled={isLoading || isRefreshing}
-        >
-          <RefreshCw className={`w-5 h-5 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh Rates
-        </Button>
-      </div>
-
-      {/* Status Bar */}
-      <div className="flex items-center justify-center">
-        <div className="flex items-center space-x-2 text-sm text-muted-foreground bg-muted/50 px-4 py-2 rounded-full">
+      {/* Status and Refresh */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg">
           <div className={`w-2 h-2 rounded-full ${rates ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
           <span>
             {rates ? `Updated ${timeAgo(rates.at)}` : 'Loading rates...'}
           </span>
         </div>
+        <Button 
+          variant="outline" 
+          size="sm"
+          className="h-10 px-4"
+          onClick={handleRefresh}
+          disabled={isLoading || isRefreshing}
+        >
+          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+          Refresh
+        </Button>
       </div>
 
       {/* Error State */}
       {error && (
-        <Card className="border-destructive/20 bg-destructive/5 shadow-lg">
-          <CardContent className="pt-4">
+        <Card className="border-destructive/50 bg-destructive/10 shadow-sm">
+          <CardContent className="p-4">
             <div className="flex items-center gap-3 text-destructive">
-              <AlertCircle className="h-5 w-5" />
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <span className="font-medium text-sm">{error}</span>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Results - Premium Cards (Sorted by Value) */}
+      {/* Results - Exchange Rates */}
       {rates && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">
               Exchange Rates
             </h2>
-            <div className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+            <div className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-md">
               {otherCurrencies.length} currencies
             </div>
           </div>
           
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {sortedCurrencies.map(currency => {
               const convertedAmount = rates?.rates 
                 ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode)
@@ -217,10 +213,10 @@ export default function HomePage() {
 
       {/* Provider Notes */}
       {rates?.providerNotes && rates.providerNotes.length > 0 && (
-        <Card className="bg-muted/30 backdrop-blur-sm border-0 shadow-lg">
-          <CardContent className="pt-4">
-            <div className="text-sm text-muted-foreground">
-              <strong className="text-foreground">Data Sources:</strong> {rates.providerNotes.join(', ')}
+        <Card className="bg-muted border border-border shadow-sm">
+          <CardContent className="p-4">
+            <div className="text-xs text-muted-foreground">
+              <strong className="text-foreground font-medium">Data Sources:</strong> {rates.providerNotes.join(', ')}
             </div>
           </CardContent>
         </Card>
@@ -230,14 +226,14 @@ export default function HomePage() {
 
   const renderRatesTab = () => (
     <div className="space-y-4">
-      <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+      <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Historical Rates</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Historical rates coming soon...</p>
+          <div className="text-center py-12 text-muted-foreground">
+            <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-40" />
+            <p className="text-sm">Historical rates coming soon...</p>
           </div>
         </CardContent>
       </Card>
@@ -246,14 +242,14 @@ export default function HomePage() {
 
   const renderMarketsTab = () => (
     <div className="space-y-4">
-      <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+      <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Market Overview</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-center py-8 text-muted-foreground">
-            <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Market data coming soon...</p>
+          <div className="text-center py-12 text-muted-foreground">
+            <Globe className="w-12 h-12 mx-auto mb-4 opacity-40" />
+            <p className="text-sm">Market data coming soon...</p>
           </div>
         </CardContent>
       </Card>
@@ -262,20 +258,20 @@ export default function HomePage() {
 
   const renderMoreTab = () => (
     <div className="space-y-4">
-      <Card className="shadow-xl border-0 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm">
+      <Card className="border border-border bg-card shadow-sm">
         <CardHeader>
           <CardTitle className="text-lg font-semibold">Settings & More</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between py-2">
             <span className="text-sm font-medium">About</span>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <ArrowUpRight className="w-4 h-4" />
             </Button>
           </div>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between py-2">
             <span className="text-sm font-medium">Help</span>
-            <Button variant="ghost" size="sm">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
               <ArrowUpRight className="w-4 h-4" />
             </Button>
           </div>
@@ -285,21 +281,20 @@ export default function HomePage() {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-accent/5 to-primary/5"></div>
-        <div className="relative flex items-center justify-between p-4">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-              <Calculator className="w-5 h-5 text-white" />
+      <div className="border-b border-border bg-card">
+        <div className="flex items-center justify-between p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+              <Calculator className="w-5 h-5 text-primary-foreground" />
             </div>
             <div>
               <h1 className="text-lg font-bold text-foreground">
                 ¿Cuánto es la vaina?
               </h1>
               <p className="text-xs text-muted-foreground">
-                Current Exchange Rates
+                Exchange Rates
               </p>
             </div>
           </div>
@@ -307,7 +302,7 @@ export default function HomePage() {
       </div>
 
       {/* Main Content - Mobile First */}
-      <main className="p-4 space-y-4">
+      <main className="p-4 pb-24 space-y-4">
         {activeTab === 'converter' && renderConverterTab()}
         {activeTab === 'rates' && renderRatesTab()}
         {activeTab === 'markets' && renderMarketsTab()}
@@ -315,51 +310,46 @@ export default function HomePage() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-sm border-t border-border/50">
-        <div className="flex items-center justify-around py-3">
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg">
+        <div className="flex items-center justify-around py-2 px-2">
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`flex flex-col items-center space-y-1 h-auto py-2 ${activeTab === 'converter' ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'converter' ? 'text-primary' : 'text-muted-foreground'}`}
             onClick={() => setActiveTab('converter')}
           >
-            <div className={`w-6 h-6 rounded-full flex items-center justify-center ${activeTab === 'converter' ? 'bg-primary' : 'bg-muted'}`}>
-              <Calculator className={`w-4 h-4 ${activeTab === 'converter' ? 'text-white' : 'text-muted-foreground'}`} />
-            </div>
-            <span className="text-xs font-medium">Converter</span>
+            <Calculator className={`w-5 h-5 ${activeTab === 'converter' ? 'text-primary' : ''}`} />
+            <span className="text-xs font-medium">Convert</span>
           </Button>
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`flex flex-col items-center space-y-1 h-auto py-2 ${activeTab === 'rates' ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'rates' ? 'text-primary' : 'text-muted-foreground'}`}
             onClick={() => setActiveTab('rates')}
           >
-            <BarChart3 className={`w-6 h-6 ${activeTab === 'rates' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <span className="text-xs">Rates</span>
+            <BarChart3 className={`w-5 h-5 ${activeTab === 'rates' ? 'text-primary' : ''}`} />
+            <span className="text-xs font-medium">Rates</span>
           </Button>
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`flex flex-col items-center space-y-1 h-auto py-2 ${activeTab === 'markets' ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'markets' ? 'text-primary' : 'text-muted-foreground'}`}
             onClick={() => setActiveTab('markets')}
           >
-            <Globe className={`w-6 h-6 ${activeTab === 'markets' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <span className="text-xs">Markets</span>
+            <Globe className={`w-5 h-5 ${activeTab === 'markets' ? 'text-primary' : ''}`} />
+            <span className="text-xs font-medium">Markets</span>
           </Button>
           <Button 
             variant="ghost" 
             size="sm" 
-            className={`flex flex-col items-center space-y-1 h-auto py-2 ${activeTab === 'more' ? 'text-primary' : 'text-muted-foreground'}`}
+            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'more' ? 'text-primary' : 'text-muted-foreground'}`}
             onClick={() => setActiveTab('more')}
           >
-            <Settings className={`w-6 h-6 ${activeTab === 'more' ? 'text-primary' : 'text-muted-foreground'}`} />
-            <span className="text-xs">More</span>
+            <Settings className={`w-5 h-5 ${activeTab === 'more' ? 'text-primary' : ''}`} />
+            <span className="text-xs font-medium">More</span>
           </Button>
         </div>
       </div>
-
-      {/* Add bottom padding to account for fixed navigation */}
-      <div className="h-20"></div>
     </div>
   )
 }
