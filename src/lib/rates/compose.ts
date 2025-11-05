@@ -223,15 +223,22 @@ export function convert(
   amount: number,
   from: Currency,
   to: Currency,
-  rates: RatesBundle
+  rates: RatesBundle,
+  mode: 'buy' | 'sell' = 'buy'
 ): number | null {
   if (from === to) return amount
+  
+  // Apply spread: buy rate is higher (you pay more), sell rate is lower (you get less)
+  // Using 1.5% spread (0.015)
+  const spread = 0.015
+  const spreadMultiplier = mode === 'buy' ? (1 + spread) : (1 - spread)
   
   const directKey = createRateKey(from, to)
   const directRate = rates[directKey]
   
   if (directRate) {
-    return roundToSignificantDigits(amount * directRate.value, 8)
+    const adjustedRate = directRate.value * spreadMultiplier
+    return roundToSignificantDigits(amount * adjustedRate, 8)
   }
   
   // Try cross conversion via USD (most reliable base currency)
@@ -240,7 +247,8 @@ export function convert(
   
   if (rates[fromUsdKey] && rates[usdToKey]) {
     const viaUsd = amount * rates[fromUsdKey].value * rates[usdToKey].value
-    return roundToSignificantDigits(viaUsd, 8)
+    const adjustedViaUsd = viaUsd * spreadMultiplier
+    return roundToSignificantDigits(adjustedViaUsd, 8)
   }
   
   // Try cross conversion via EUR
@@ -249,7 +257,8 @@ export function convert(
   
   if (rates[fromEurKey] && rates[eurToKey]) {
     const viaEur = amount * rates[fromEurKey].value * rates[eurToKey].value
-    return roundToSignificantDigits(viaEur, 8)
+    const adjustedViaEur = viaEur * spreadMultiplier
+    return roundToSignificantDigits(adjustedViaEur, 8)
   }
   
   // Try cross conversion via COP (for VES-COP specifically)
@@ -259,7 +268,8 @@ export function convert(
     
     if (rates[vesUsdKey] && rates[usdCopKey]) {
       const viaUsd = amount * rates[vesUsdKey].value * rates[usdCopKey].value
-      return roundToSignificantDigits(viaUsd, 8)
+      const adjustedViaUsd = viaUsd * spreadMultiplier
+      return roundToSignificantDigits(adjustedViaUsd, 8)
     }
   }
   
@@ -269,7 +279,8 @@ export function convert(
     
     if (rates[copUsdKey] && rates[usdVesKey]) {
       const viaUsd = amount * rates[copUsdKey].value * rates[usdVesKey].value
-      return roundToSignificantDigits(viaUsd, 8)
+      const adjustedViaUsd = viaUsd * spreadMultiplier
+      return roundToSignificantDigits(adjustedViaUsd, 8)
     }
   }
   
@@ -281,7 +292,8 @@ export function convert(
     
     if (rates[vesUsdKey] && rates[usdEurKey] && rates[eurTargetKey]) {
       const viaUsdEur = amount * rates[vesUsdKey].value * rates[usdEurKey].value * rates[eurTargetKey].value
-      return roundToSignificantDigits(viaUsdEur, 8)
+      const adjustedViaUsdEur = viaUsdEur * spreadMultiplier
+      return roundToSignificantDigits(adjustedViaUsdEur, 8)
     }
   }
   

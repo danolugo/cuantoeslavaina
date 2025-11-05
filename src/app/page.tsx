@@ -21,6 +21,7 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'converter' | 'rates' | 'markets' | 'more'>('converter')
+  const [exchangeMode, setExchangeMode] = useState<'buy' | 'sell'>('buy')
 
   const fetchRates = async (forceRefresh = false) => {
     try {
@@ -58,8 +59,8 @@ export default function HomePage() {
   const sortedCurrencies = otherCurrencies.sort((a, b) => {
     if (!rates?.rates) return 0
     
-    const amountA = convert(amount, baseCurrency, a, rates.rates)
-    const amountB = convert(amount, baseCurrency, b, rates.rates)
+    const amountA = convert(amount, baseCurrency, a, rates.rates, exchangeMode)
+    const amountB = convert(amount, baseCurrency, b, rates.rates, exchangeMode)
     
     // Handle null values by treating them as 0 for sorting
     const valueA = amountA ?? 0
@@ -103,6 +104,30 @@ export default function HomePage() {
                 onChange={setBaseCurrency}
                 disabled={isLoading}
               />
+            </div>
+            
+            {/* Buy/Sell Toggle */}
+            <div className="max-w-xs mx-auto">
+              <div className="flex items-center justify-center space-x-2 bg-white/10 dark:bg-black/20 rounded-lg p-1">
+                <Button
+                  variant={exchangeMode === 'buy' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExchangeMode('buy')}
+                  disabled={isLoading}
+                  className={`flex-1 ${exchangeMode === 'buy' ? 'bg-primary text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                >
+                  Buy
+                </Button>
+                <Button
+                  variant={exchangeMode === 'sell' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setExchangeMode('sell')}
+                  disabled={isLoading}
+                  className={`flex-1 ${exchangeMode === 'sell' ? 'bg-primary text-white' : 'text-white/70 hover:text-white hover:bg-white/10'}`}
+                >
+                  Sell
+                </Button>
+              </div>
             </div>
             
             {/* Amount Input */}
@@ -169,7 +194,7 @@ export default function HomePage() {
           <div className="space-y-3">
             {sortedCurrencies.map(currency => {
               const convertedAmount = rates?.rates 
-                ? convert(amount, baseCurrency, currency, rates.rates)
+                ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode)
                 : null
               
               const rateKey = `${baseCurrency}-${currency}` as keyof typeof rates.rates
@@ -182,6 +207,7 @@ export default function HomePage() {
                   amount={convertedAmount || 0}
                   rate={rate}
                   isLoading={isLoading}
+                  exchangeMode={exchangeMode}
                 />
               )
             })}

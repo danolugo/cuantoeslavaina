@@ -11,9 +11,10 @@ interface ResultCardProps {
   amount: number
   rate: Rate | null
   isLoading?: boolean
+  exchangeMode?: 'buy' | 'sell'
 }
 
-export function ResultCard({ currency, amount, rate, isLoading }: ResultCardProps) {
+export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = 'buy' }: ResultCardProps) {
   const info = CURRENCY_INFO[currency]
   
   if (isLoading) {
