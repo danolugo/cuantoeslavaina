@@ -1,7 +1,7 @@
 'use client'
 
 import { Currency, CURRENCY_INFO } from '@/lib/rates/types'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 
 interface CurrencySelectProps {
   value: Currency
@@ -9,37 +9,35 @@ interface CurrencySelectProps {
   disabled?: boolean
 }
 
+const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
+
 export function CurrencySelect({ value, onChange, disabled }: CurrencySelectProps) {
-  const selectedInfo = CURRENCY_INFO[value]
-  
   return (
-    <Select value={value} onValueChange={onChange} disabled={disabled}>
-      <SelectTrigger className="w-full h-12 bg-card border border-border shadow-sm focus:shadow-md transition-shadow focus:ring-2 focus:ring-primary/20 rounded-lg">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <span className="text-lg">{selectedInfo.flag}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="font-semibold text-sm">{value}</span>
-            <span className="text-xs text-muted-foreground hidden sm:inline">{selectedInfo.name}</span>
-          </div>
-        </div>
-      </SelectTrigger>
-      <SelectContent className="bg-card border border-border shadow-lg rounded-lg">
-        {Object.entries(CURRENCY_INFO).map(([code, info]) => (
-          <SelectItem key={code} value={code} className="hover:bg-muted focus:bg-muted rounded-md">
-            <div className="flex items-center gap-3 py-1.5">
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <span className="text-lg">{info.flag}</span>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-semibold text-sm">{code}</span>
-                <span className="text-xs text-muted-foreground">{info.name}</span>
-              </div>
-            </div>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      {CURRENCIES.map((code) => {
+        const info = CURRENCY_INFO[code]
+        const selected = value === code
+        return (
+          <button
+            key={code}
+            type="button"
+            onClick={() => onChange(code)}
+            disabled={disabled}
+            className={cn(
+              'flex flex-col items-center justify-center gap-1.5 min-h-[3.25rem] py-3 px-3 rounded-xl border-2 transition-all duration-200',
+              'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2',
+              selected
+                ? 'bg-primary/15 border-primary text-primary font-semibold'
+                : 'bg-card border-border text-foreground hover:border-primary/40 hover:bg-muted/50'
+            )}
+          >
+            <span className="text-xl leading-none" aria-hidden>
+              {info.flag}
+            </span>
+            <span className="text-sm font-semibold">{code}</span>
+          </button>
+        )
+      })}
+    </div>
   )
 }

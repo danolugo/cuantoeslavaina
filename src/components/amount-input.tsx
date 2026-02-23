@@ -8,9 +8,11 @@ interface AmountInputProps {
   onChange: (amount: number) => void
   currency: string
   disabled?: boolean
+  /** Large display-style input for main amount card */
+  variant?: 'default' | 'display'
 }
 
-export function AmountInput({ value, onChange, currency, disabled }: AmountInputProps) {
+export function AmountInput({ value, onChange, currency, disabled, variant = 'default' }: AmountInputProps) {
   const [displayValue, setDisplayValue] = useState('')
   
   useEffect(() => {
@@ -45,10 +47,25 @@ export function AmountInput({ value, onChange, currency, disabled }: AmountInput
     }
   }
   
+  if (variant === 'display') {
+    return (
+      <Input
+        id="amount"
+        type="text"
+        value={displayValue}
+        onChange={handleChange}
+        placeholder="0"
+        disabled={disabled}
+        className="h-auto min-h-[2.5rem] py-1 text-foreground font-bold bg-transparent border-0 shadow-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-lg text-[clamp(1.75rem,8vw,2.75rem)] leading-none tracking-tight"
+        aria-label="Cantidad a convertir"
+      />
+    )
+  }
+
   return (
     <div className="space-y-2">
       <label htmlFor="amount" className="text-sm font-medium text-foreground">
-        Amount
+        Cantidad
       </label>
       <div className="relative">
         <Input
@@ -58,7 +75,7 @@ export function AmountInput({ value, onChange, currency, disabled }: AmountInput
           onChange={handleChange}
           placeholder="0"
           disabled={disabled}
-          className="h-12 text-lg font-semibold bg-card border border-border shadow-sm focus:shadow-md transition-shadow focus:ring-2 focus:ring-primary/20 rounded-lg pr-16"
+          className="h-12 text-lg font-semibold bg-card border border-border shadow-sm focus:shadow-md transition-shadow focus:ring-2 focus:ring-primary/20 rounded-xl pr-16"
         />
         <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm font-semibold text-muted-foreground">
           {currency}

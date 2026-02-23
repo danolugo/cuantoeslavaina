@@ -61,10 +61,10 @@ export function ThemeSwitcher() {
       variant="ghost"
       size="icon"
       onClick={cycleTheme}
-      className="h-10 w-10 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 shadow-lg hover:shadow-xl transition-all duration-300"
+      className="h-10 w-10 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/30 text-primary shadow-sm hover:shadow transition-all duration-200"
       title={`Switch theme (current: ${currentThemeInfo.label})`}
     >
-      <Icon className="h-4 w-4 text-white" />
+      <Icon className="h-4 w-4" />
       <span className="sr-only">Switch theme</span>
     </Button>
   )

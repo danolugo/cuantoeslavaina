@@ -30,7 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" suppressHydrationWarning className="dark">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${inter.className} ${sourceCodePro.variable}`}>
         {children}
       </body>

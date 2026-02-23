@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Currency, CURRENCY_INFO, Rate } from '@/lib/rates/types'
 import { formatCurrency, formatRate } from '@/lib/format/currency'
-import { Info, TrendingUp, TrendingDown, Minus, ArrowUpRight, ArrowDownRight } from 'lucide-react'
+import { Info, Minus } from 'lucide-react'
 
 interface ResultCardProps {
   currency: Currency
@@ -68,73 +68,46 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
   // Show the rate in the correct format: "1 USD = 201 VES" (not "1 VES = 0.000 USD")
   const rateText = `1 ${rate.base} = ${formatRate(rate.value, rate.base, rate.quote)} ${rate.quote}`
   
-  // Simulate trend (this would normally come from historical data)
-  const trend = Math.random() > 0.5 ? 'up' : 'down'
-  const trendValue = (Math.random() * 2).toFixed(2)
-  
   return (
-    <Card className="border border-border bg-card shadow-sm hover:shadow-md transition-shadow">
-      <div className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-              <span className="text-lg">{info.flag}</span>
-            </div>
-            <div>
-              <div className="font-semibold text-foreground text-sm">{currency}</div>
-              <div className="text-xs text-muted-foreground">{info.name}</div>
-            </div>
+    <Card className="border border-border bg-card shadow-sm hover:shadow-md transition-shadow rounded-xl overflow-hidden">
+      <div className="p-4 flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-lg leading-none" aria-hidden>
+              {info.flag}
+            </span>
+            <span className="font-semibold text-foreground text-sm">
+              {currency === 'USD' ? 'Dólares' : currency === 'COP' ? 'Pesos' : info.name}
+            </span>
           </div>
-          <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
-            trend === 'up' 
-              ? 'bg-green-500/10' 
-              : 'bg-red-500/10'
-          }`}>
-            {trend === 'up' ? (
-              <TrendingUp className="w-4 h-4 text-green-600 dark:text-green-500" />
-            ) : (
-              <TrendingDown className="w-4 h-4 text-red-600 dark:text-red-500" />
-            )}
-          </div>
-        </div>
-        
-        <div className="space-y-2.5">
-          <div className="text-2xl font-bold text-foreground tracking-tight">
+          <div className="text-[clamp(1.25rem,5vw,1.75rem)] font-bold text-foreground tracking-tight">
             {formattedAmount}
           </div>
-          
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="font-medium">{rateText}</span>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="h-3.5 w-3.5 cursor-help hover:text-foreground transition-colors" />
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-card border border-border shadow-lg">
-                    <div className="space-y-1.5">
-                      <p className="font-medium text-sm">Source: {rate.provider}</p>
-                      {rate.provider.includes('+') && (
-                        <p className="text-xs text-muted-foreground">Cross-conversion</p>
-                      )}
-                      <p className="text-xs text-muted-foreground">
-                        Updated: {new Date(rate.at).toLocaleString()}
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-            
-            <div className={`text-xs font-semibold ${
-              trend === 'up' 
-                ? 'text-green-600 dark:text-green-500' 
-                : 'text-red-600 dark:text-red-500'
-            }`}>
-              {trend === 'up' ? '+' : '-'}{trendValue}%
-            </div>
+          <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+            <span className="font-medium">{rateText}</span>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-3.5 w-3.5 cursor-help hover:text-foreground transition-colors flex-shrink-0" />
+                </TooltipTrigger>
+                <TooltipContent className="bg-card border border-border shadow-lg">
+                  <div className="space-y-1.5">
+                    <p className="font-medium text-sm">Fuente: {rate.provider}</p>
+                    {rate.provider.includes('+') && (
+                      <p className="text-xs text-muted-foreground">Conversión cruzada</p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Actualizado: {new Date(rate.at).toLocaleString()}
+                    </p>
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
+        <span className="flex-shrink-0 px-2.5 py-1 rounded-full bg-primary/15 text-primary text-xs font-semibold">
+          {currency}
+        </span>
       </div>
     </Card>
   )

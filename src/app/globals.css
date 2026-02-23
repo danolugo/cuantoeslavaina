@@ -4,11 +4,11 @@
 
 @layer base {
   :root {
-    /* Perpetuity Theme - Light Mode (Default) */
+    /* Light mode: purple accent, soft corners (design-inspired) */
     --font-sans: var(--font-source-code-pro), "Source Code Pro", monospace;
     --font-mono: var(--font-source-code-pro), "Source Code Pro", monospace;
     --font-serif: var(--font-source-code-pro), "Source Code Pro", monospace;
-    --radius: 0.125rem;
+    --radius: 0.5rem;
     --tracking-normal: 0em;
     --tracking-tighter: calc(var(--tracking-normal) - 0.05em);
     --tracking-tight: calc(var(--tracking-normal) - 0.025em);
@@ -36,7 +36,7 @@
     --card-foreground: 188.8000 78.9474% 18.6275%;
     --popover: 180 23.8095% 95.8824%;
     --popover-foreground: 188.8000 78.9474% 18.6275%;
-    --primary: 183.9706 91.8919% 29.0196%;
+    --primary: 263 70% 52%;
     --primary-foreground: 0 0% 100%;
     --secondary: 180 28.8136% 88.4314%;
     --secondary-foreground: 188.8000 78.9474% 18.6275%;
@@ -48,7 +48,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 185.7143 26.5823% 84.5098%;
     --input: 180 28.8136% 88.4314%;
-    --ring: 183.9706 91.8919% 29.0196%;
+    --ring: 263 70% 52%;
     --chart-1: 183.9706 91.8919% 29.0196%;
     --chart-2: 183.5294 69.3878% 38.4314%;
     --chart-3: 183.5556 55.1020% 48.0392%;
@@ -133,5 +133,15 @@
   body {
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
+  }
+}
+
+/* Mobile: safe area for notched devices and bottom nav */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0);
   }
 }

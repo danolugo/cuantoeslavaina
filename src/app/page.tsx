@@ -6,10 +6,11 @@ import { Button } from '@/components/ui/button'
 import { CurrencySelect } from '@/components/currency-select'
 import { AmountInput } from '@/components/amount-input'
 import { ResultCard } from '@/components/result-card'
-import { Currency, RatesResponse, Rate } from '@/lib/rates/types'
+import { Currency, RatesResponse, Rate, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
 import { timeAgo } from '@/utils/timeago'
-import { RefreshCw, AlertCircle, TrendingUp, Globe, Calculator, ArrowUpRight, ArrowDownRight, Menu, Search, BarChart3, Settings } from 'lucide-react'
+import { RefreshCw, AlertCircle, Globe, Calculator, BarChart3, Settings } from 'lucide-react'
+import { ThemeSwitcher } from '@/components/theme-switcher'
 
 const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
 
@@ -70,96 +71,77 @@ export default function HomePage() {
   })
 
   const renderConverterTab = () => (
-    <div className="space-y-4 pb-4">
-      {/* Main Amount Display */}
-      <Card className="border border-border bg-card shadow-sm">
-        <CardContent className="p-6">
-          <div className="space-y-6">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-3 font-medium">Amount</p>
-              <div className="font-bold tracking-tight break-all overflow-hidden min-h-[3.5rem] flex items-center justify-center">
-                <div 
-                  className="text-center leading-none text-foreground"
-                  style={{
-                    fontSize: `clamp(2rem, 10vw, 3.5rem)`,
-                    wordBreak: 'break-all',
-                    overflowWrap: 'anywhere'
-                  }}
-                >
-                  {new Intl.NumberFormat('es-VE', {
-                    style: 'currency',
-                    currency: baseCurrency === 'VES' ? 'VES' : baseCurrency === 'COP' ? 'COP' : baseCurrency,
-                    minimumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
-                    maximumFractionDigits: baseCurrency === 'VES' ? 0 : 2,
-                  }).format(amount)}
-                </div>
-              </div>
-            </div>
-            
-            {/* Currency Selection */}
-            <div>
-              <CurrencySelect
-                value={baseCurrency}
-                onChange={setBaseCurrency}
-                disabled={isLoading}
-              />
-            </div>
-            
-            {/* Buy/Sell Toggle */}
-            <div>
-              <p className="text-sm text-muted-foreground mb-2 font-medium">Exchange Type</p>
-              <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-                <Button
-                  variant={exchangeMode === 'buy' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setExchangeMode('buy')}
-                  disabled={isLoading}
-                  className={`flex-1 h-10 font-medium ${exchangeMode === 'buy' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
-                >
-                  Buy
-                </Button>
-                <Button
-                  variant={exchangeMode === 'sell' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setExchangeMode('sell')}
-                  disabled={isLoading}
-                  className={`flex-1 h-10 font-medium ${exchangeMode === 'sell' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
-                >
-                  Sell
-                </Button>
-              </div>
-            </div>
-            
-            {/* Amount Input */}
-            <div>
-              <AmountInput
-                value={amount}
-                onChange={setAmount}
-                currency={baseCurrency}
-                disabled={isLoading}
-              />
-            </div>
+    <div className="space-y-5 pb-4">
+      {/* Cantidad a convertir - design-inspired card */}
+      <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
+        <CardContent className="p-5">
+          <p className="text-sm text-muted-foreground mb-2 font-medium">Cantidad a convertir</p>
+          <div className="min-h-[3rem] flex flex-col justify-center">
+            <AmountInput
+              value={amount}
+              onChange={setAmount}
+              currency={baseCurrency}
+              disabled={isLoading}
+              variant="display"
+            />
           </div>
+          <p className="text-base font-medium text-primary mt-1">
+            {baseCurrency === 'VES' && 'Bs. '}
+            {({ VES: 'Bolívares', USD: 'Dólares', EUR: 'Euros', COP: 'Pesos' } as const)[baseCurrency]}
+          </p>
         </CardContent>
       </Card>
 
+      {/* Moneda de origen - horizontal buttons */}
+      <div>
+        <p className="text-sm text-muted-foreground mb-3 font-medium">Moneda de origen</p>
+        <CurrencySelect
+          value={baseCurrency}
+          onChange={setBaseCurrency}
+          disabled={isLoading}
+        />
+      </div>
+
+      {/* Tipo de cambio - Buy/Sell */}
+      <div>
+        <p className="text-sm text-muted-foreground mb-2 font-medium">Tipo de cambio</p>
+        <div className="flex items-center gap-2 bg-muted rounded-xl p-1">
+          <Button
+            variant={exchangeMode === 'buy' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setExchangeMode('buy')}
+            disabled={isLoading}
+            className={`flex-1 h-11 font-medium rounded-lg ${exchangeMode === 'buy' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
+          >
+            Compra
+          </Button>
+          <Button
+            variant={exchangeMode === 'sell' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setExchangeMode('sell')}
+            disabled={isLoading}
+            className={`flex-1 h-11 font-medium rounded-lg ${exchangeMode === 'sell' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
+          >
+            Venta
+          </Button>
+        </div>
+      </div>
+
       {/* Status and Refresh */}
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-lg">
-          <div className={`w-2 h-2 rounded-full ${rates ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-          <span>
-            {rates ? `Updated ${timeAgo(rates.at)}` : 'Loading rates...'}
-          </span>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-xl">
+          <div className={`w-2 h-2 rounded-full ${rates ? 'bg-green-500' : 'bg-yellow-500'}`} />
+          <span>{rates ? `Actualizado ${timeAgo(rates.at)}` : 'Cargando tasas...'}</span>
         </div>
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="sm"
-          className="h-10 px-4"
+          className="h-10 px-4 rounded-xl"
           onClick={handleRefresh}
           disabled={isLoading || isRefreshing}
         >
           <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Refresh
+          Actualizar
         </Button>
       </div>
 
@@ -175,15 +157,13 @@ export default function HomePage() {
         </Card>
       )}
 
-      {/* Results - Exchange Rates */}
+      {/* Results - Tasas de cambio */}
       {rates && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">
-              Exchange Rates
-            </h2>
-            <div className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-md">
-              {otherCurrencies.length} currencies
+            <h2 className="text-lg font-semibold text-foreground">Tasas de cambio</h2>
+            <div className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
+              {otherCurrencies.length} monedas
             </div>
           </div>
           
@@ -282,35 +262,33 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Mobile Header */}
-      <div className="border-b border-border bg-card">
+      {/* Mobile Header - design-inspired: title, actualizado, theme toggle */}
+      <div className="border-b border-border bg-card pt-safe">
         <div className="flex items-center justify-between p-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-              <Calculator className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="text-lg font-bold text-foreground">
-                ¿Cuánto es la vaina?
-              </h1>
-              <p className="text-xs text-muted-foreground">
-                Exchange Rates
-              </p>
-            </div>
+          <div>
+            <h1 className="text-xl font-bold text-foreground tracking-tight">
+              Cuantoeslavaina
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {rates
+                ? `Actualizado ${new Date(rates.at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`
+                : 'Cargando tasas...'}
+            </p>
           </div>
+          <ThemeSwitcher />
         </div>
       </div>
 
-      {/* Main Content - Mobile First */}
-      <main className="p-4 pb-24 space-y-4">
+      {/* Main Content - Mobile First with safe area */}
+      <main className="p-4 pb-24 pb-safe max-w-lg mx-auto space-y-4">
         {activeTab === 'converter' && renderConverterTab()}
         {activeTab === 'rates' && renderRatesTab()}
         {activeTab === 'markets' && renderMarketsTab()}
         {activeTab === 'more' && renderMoreTab()}
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg">
+      {/* Mobile Bottom Navigation - safe area for notched devices */}
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg pb-safe">
         <div className="flex items-center justify-around py-2 px-2">
           <Button 
             variant="ghost" 
