@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CurrencySelect } from '@/components/currency-select'
 import { AmountInput } from '@/components/amount-input'
@@ -9,7 +9,7 @@ import { ResultCard } from '@/components/result-card'
 import { Currency, RatesResponse, Rate, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
 import { timeAgo } from '@/utils/timeago'
-import { RefreshCw, AlertCircle, Globe, Calculator, BarChart3, Settings, ArrowUpRight } from 'lucide-react'
+import { RefreshCw, AlertCircle } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 
 const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
@@ -21,7 +21,6 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'converter' | 'rates' | 'markets' | 'more'>('converter')
   const [exchangeMode, setExchangeMode] = useState<'buy' | 'sell'>('buy')
 
   const fetchRates = async (forceRefresh = false) => {
@@ -204,62 +203,6 @@ export default function HomePage() {
     </div>
   )
 
-  const renderRatesTab = () => (
-    <div className="space-y-4">
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Historical Rates</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <BarChart3 className="w-12 h-12 mx-auto mb-4 opacity-40" />
-            <p className="text-sm">Historical rates coming soon...</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  const renderMarketsTab = () => (
-    <div className="space-y-4">
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Market Overview</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-center py-12 text-muted-foreground">
-            <Globe className="w-12 h-12 mx-auto mb-4 opacity-40" />
-            <p className="text-sm">Market data coming soon...</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
-  const renderMoreTab = () => (
-    <div className="space-y-4">
-      <Card className="border border-border bg-card shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold">Settings & More</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm font-medium">About</span>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <ArrowUpRight className="w-4 h-4" />
-            </Button>
-          </div>
-          <div className="flex items-center justify-between py-2">
-            <span className="text-sm font-medium">Help</span>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-              <ArrowUpRight className="w-4 h-4" />
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-
   return (
     <div className="min-h-screen bg-background">
       {/* Mobile Header - design-inspired: title, actualizado, theme toggle */}
@@ -280,54 +223,9 @@ export default function HomePage() {
       </div>
 
       {/* Main Content - Mobile First with safe area */}
-      <main className="p-4 pb-24 pb-safe max-w-lg mx-auto space-y-4">
-        {activeTab === 'converter' && renderConverterTab()}
-        {activeTab === 'rates' && renderRatesTab()}
-        {activeTab === 'markets' && renderMarketsTab()}
-        {activeTab === 'more' && renderMoreTab()}
+      <main className="p-4 pb-8 pb-safe max-w-lg mx-auto space-y-4">
+        {renderConverterTab()}
       </main>
-
-      {/* Mobile Bottom Navigation - safe area for notched devices */}
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-lg pb-safe">
-        <div className="flex items-center justify-around py-2 px-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'converter' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setActiveTab('converter')}
-          >
-            <Calculator className={`w-5 h-5 ${activeTab === 'converter' ? 'text-primary' : ''}`} />
-            <span className="text-xs font-medium">Convert</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'rates' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setActiveTab('rates')}
-          >
-            <BarChart3 className={`w-5 h-5 ${activeTab === 'rates' ? 'text-primary' : ''}`} />
-            <span className="text-xs font-medium">Rates</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'markets' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setActiveTab('markets')}
-          >
-            <Globe className={`w-5 h-5 ${activeTab === 'markets' ? 'text-primary' : ''}`} />
-            <span className="text-xs font-medium">Markets</span>
-          </Button>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            className={`flex flex-col items-center gap-1 h-auto py-2 px-3 min-w-0 ${activeTab === 'more' ? 'text-primary' : 'text-muted-foreground'}`}
-            onClick={() => setActiveTab('more')}
-          >
-            <Settings className={`w-5 h-5 ${activeTab === 'more' ? 'text-primary' : ''}`} />
-            <span className="text-xs font-medium">More</span>
-          </Button>
-        </div>
-      </div>
     </div>
   )
 }
