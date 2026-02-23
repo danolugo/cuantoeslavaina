@@ -9,7 +9,7 @@ import { ResultCard } from '@/components/result-card'
 import { Currency, RatesResponse, Rate, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
 import { timeAgo } from '@/utils/timeago'
-import { RefreshCw, AlertCircle, Globe, Calculator, BarChart3, Settings } from 'lucide-react'
+import { RefreshCw, AlertCircle, Globe, Calculator, BarChart3, Settings, ArrowUpRight } from 'lucide-react'
 import { ThemeSwitcher } from '@/components/theme-switcher'
 
 const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
