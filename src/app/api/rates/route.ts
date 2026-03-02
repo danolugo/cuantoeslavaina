@@ -7,6 +7,8 @@ import { singleflight } from '@/lib/utils/singleflight'
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: NextRequest) {
+  const requestId = crypto.randomUUID()
+
   try {
     const { searchParams } = new URL(request.url)
     const forceRefresh = searchParams.get('refresh') === 'true'
@@ -32,7 +34,8 @@ export async function GET(request: NextRequest) {
 
     // If force refresh, disable cache for this request
     if (forceRefresh) {
-      const rates = await singleflight.do('rates:v1:refresh', () => composeRates(true))
+      console.log(`[${requestId}] Force refresh triggered`)
+      const rates = await singleflight.do('rates:v1:refresh', () => composeRates(true, requestId))
       const providerNotes: string[] = []
 
       const responsePayload: RatesResponse = {
@@ -64,7 +67,8 @@ export async function GET(request: NextRequest) {
     }
 
     // Normal cached request
-    const rates = await singleflight.do('rates:v1', () => composeRates(false))
+    console.log(`[${requestId}] Serving default caching logic`)
+    const rates = await singleflight.do('rates:v1', () => composeRates(false, requestId))
     const providerNotes: string[] = []
 
     const responsePayload: RatesResponse = {
@@ -89,7 +93,7 @@ export async function GET(request: NextRequest) {
     return response
 
   } catch (error) {
-    console.error('Rates API error:', error)
+    console.error(`[${requestId}] Rates API error:`, error)
 
     return NextResponse.json(
       {

@@ -1,4 +1,6 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
+import { fetchWithProviderHandling } from '../fetcher'
+import { ProviderError } from '../errors'
 
 // Alternative sources for VES rates
 const VES_SOURCES = [
@@ -19,41 +21,6 @@ const VES_SOURCES = [
   }
 ]
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 3): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          ...options.headers
-        }
-      })
-
-      if (response.ok) {
-        return response
-      }
-    } catch (error: any) {
-      if (error?.cause?.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || error?.cause?.code === 'CERT_HAS_EXPIRED') {
-        const hostname = new URL(url).hostname
-        console.error(`\n[TLS Error] Hostname: ${hostname}`)
-        console.error(`[TLS Error] Details: ${error.cause.message} (${error.cause.code})`)
-        console.error(`[TLS Error] Proposed Safe Fix: 1) Swap provider to an official structured API. 2) Provide a custom CA bundle for this domain. 3) Use an explicit https.Agent or undici dispatcher with 'rejectUnauthorized: false' scoped exclusively to this host.\n`)
-        throw error // Fast fail for TLS
-      }
-
-      console.warn(`Attempt ${i + 1} failed for ${url}:`, error.message || error)
-      if (i === retries - 1) throw error
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
-    }
-  }
-  throw new Error('All retry attempts failed')
-}
 
 function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
@@ -115,19 +82,31 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   return rates
 }
 
-export async function getBCVRates(): Promise<ProviderResult> {
+export async function getBCVRates(requestId: string): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
 
   // Try multiple sources in parallel
   const sourcePromises = VES_SOURCES.map(async (source) => {
     try {
-      const response = await fetchWithRetry(source.url, {
-        next: { revalidate: 3600 }
+      const response = await fetchWithProviderHandling(source.url, source.name, requestId, {
+        next: { revalidate: 3600 },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
       })
 
       const html = await response.text()
       const rates = parseVESFromHTML(html, source.name)
+
+      if (Object.keys(rates).length === 0) {
+        throw new ProviderError(`Failed to parse HTML from ${source.name}`, 'PARSE', source.name)
+      }
 
       return {
         source: source.name,
@@ -135,7 +114,11 @@ export async function getBCVRates(): Promise<ProviderResult> {
         success: true
       }
     } catch (error) {
-      console.warn(`${source.name} failed:`, error)
+      if (error instanceof ProviderError) {
+        console.warn(`[${requestId}] ${source.name} failed (${error.code}):`, error.message)
+      } else {
+        console.warn(`[${requestId}] ${source.name} failed:`, error)
+      }
       return {
         source: source.name,
         rates: [],

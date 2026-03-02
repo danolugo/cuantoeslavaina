@@ -1,4 +1,6 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
+import { fetchWithProviderHandling } from '../fetcher'
+import { ProviderError } from '../errors'
 
 // Alternative sources for VES rates that might work better
 const ALTERNATIVE_VES_SOURCES = [
@@ -19,33 +21,7 @@ const ALTERNATIVE_VES_SOURCES = [
   }
 ]
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1',
-          ...options.headers
-        }
-      })
 
-      if (response.ok) {
-        return response
-      }
-    } catch (error) {
-      console.warn(`Attempt ${i + 1} failed for ${url}:`, error)
-      if (i === retries - 1) throw error
-      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
-    }
-  }
-  throw new Error('All retry attempts failed')
-}
 
 function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
@@ -112,7 +88,7 @@ function parseVESFromJSON(data: any, source: string): Partial<RatesBundle> {
   return rates
 }
 
-export async function getAlternativeVESRates(): Promise<ProviderResult> {
+export async function getAlternativeVESRates(requestId: string): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
   const apiKey = process.env.PUBLIC_FX_API_KEY
@@ -151,29 +127,47 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
         url = `${source.url}&apikey=${apiKey}`
       }
 
-      const response = await fetchWithRetry(url, {
-        next: { revalidate: 3600 }
+      const response = await fetchWithProviderHandling(url, source.name, requestId, {
+        next: { revalidate: 3600 },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.5',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1'
+        }
       })
 
       if (source.parseHtml) {
         const html = await response.text()
         const rates = parseVESFromHTML(html, source.name)
+        if (Object.keys(rates).length === 0) {
+          throw new ProviderError(`Failed to parse HTML from ${source.name}`, 'PARSE', source.name)
+        }
         return {
           source: source.name,
           rates: Object.values(rates),
-          success: Object.keys(rates).length > 0
+          success: true
         }
       } else {
         const data = await response.json()
         const rates = parseVESFromJSON(data, source.name)
+        if (Object.keys(rates).length === 0) {
+          throw new ProviderError(`Failed to parse JSON from ${source.name}`, 'PARSE', source.name)
+        }
         return {
           source: source.name,
           rates: Object.values(rates),
-          success: Object.keys(rates).length > 0
+          success: true
         }
       }
     } catch (error) {
-      console.warn(`${source.name} failed:`, error)
+      if (error instanceof ProviderError) {
+        console.warn(`[${requestId}] ${source.name} failed (${error.code}):`, error.message)
+      } else {
+        console.warn(`[${requestId}] ${source.name} failed:`, error)
+      }
       return {
         source: source.name,
         rates: [],

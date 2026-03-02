@@ -1,4 +1,6 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
+import { fetchWithProviderHandling } from '../fetcher'
+import { ProviderError } from '../errors'
 
 // Multiple public FX sources for better reliability
 const FX_SOURCES = [
@@ -24,29 +26,7 @@ const FX_SOURCES = [
   }
 ]
 
-async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 2): Promise<Response> {
-  for (let i = 0; i < retries; i++) {
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-          ...options.headers
-        }
-      })
 
-      if (response.ok) {
-        return response
-      }
-    } catch (error) {
-      console.warn(`Attempt ${i + 1} failed for ${url}:`, error)
-      if (i === retries - 1) throw error
-      await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)))
-    }
-  }
-  throw new Error('All retry attempts failed')
-}
 
 function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
@@ -115,7 +95,7 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
   return rates
 }
 
-export async function getPublicFxRates(): Promise<ProviderResult> {
+export async function getPublicFxRates(requestId: string): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
   const apiKey = process.env.PUBLIC_FX_API_KEY
@@ -158,12 +138,20 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
         }
       }
 
-      const response = await fetchWithRetry(url, {
-        next: { revalidate: 3600 }
+      const response = await fetchWithProviderHandling(url, source.name, requestId, {
+        next: { revalidate: 3600 },
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json'
+        }
       })
 
       const data = await response.json()
       const rates = parseFxResponse(data, source.name)
+
+      if (Object.keys(rates).length === 0) {
+        throw new ProviderError(`Failed to parse FX rates from ${source.name}`, 'PARSE', source.name)
+      }
 
       return {
         source: source.name,
@@ -171,7 +159,11 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
         success: true
       }
     } catch (error) {
-      console.warn(`${source.name} failed:`, error)
+      if (error instanceof ProviderError) {
+        console.warn(`[${requestId}] ${source.name} failed (${error.code}):`, error.message)
+      } else {
+        console.warn(`[${requestId}] ${source.name} failed:`, error)
+      }
       return {
         source: source.name,
         rates: [],

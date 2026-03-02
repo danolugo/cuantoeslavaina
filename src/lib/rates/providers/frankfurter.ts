@@ -1,24 +1,22 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
+import { fetchWithProviderHandling } from '../fetcher'
+import { ProviderError } from '../errors'
 
-export async function getFrankfurterRates(): Promise<ProviderResult> {
+export async function getFrankfurterRates(requestId: string): Promise<ProviderResult> {
   try {
-    const response = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD', {
+    const response = await fetchWithProviderHandling('https://api.frankfurter.app/latest?from=EUR&to=USD', 'Frankfurter', requestId, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (compatible; CurrencyConverter/1.0)',
       },
       next: { revalidate: 3600 }
     })
-    
-    if (!response.ok) {
-      throw new Error(`Frankfurter API failed: ${response.status}`)
-    }
-    
+
     const data = await response.json()
     const rates: Partial<RatesBundle> = {}
-    
+
     if (data.rates && data.rates.USD) {
       const eurUsdRate = data.rates.USD
-      
+
       // EUR to USD
       rates['EUR-USD'] = {
         base: 'EUR',
@@ -27,7 +25,7 @@ export async function getFrankfurterRates(): Promise<ProviderResult> {
         provider: 'Frankfurter',
         at: data.date || new Date().toISOString()
       }
-      
+
       // USD to EUR (inverse)
       rates['USD-EUR'] = {
         base: 'USD',
@@ -37,19 +35,23 @@ export async function getFrankfurterRates(): Promise<ProviderResult> {
         at: data.date || new Date().toISOString()
       }
     }
-    
+
     if (Object.keys(rates).length === 0) {
-      throw new Error('No valid rates found in Frankfurter response')
+      throw new ProviderError('No valid rates found in Frankfurter response', 'PARSE', 'Frankfurter')
     }
-    
+
     return {
       rates,
       provider: 'Frankfurter',
       success: true
     }
-    
+
   } catch (error) {
-    console.error('Frankfurter provider error:', error)
+    if (error instanceof ProviderError) {
+      console.warn(`[${requestId}] Frankfurter provider error (${error.code}):`, error.message)
+    } else {
+      console.error(`[${requestId}] Frankfurter provider error:`, error)
+    }
     return {
       rates: {},
       provider: 'Frankfurter',

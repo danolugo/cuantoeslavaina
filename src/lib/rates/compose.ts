@@ -50,7 +50,7 @@ export function computeCrossRate(
   }
 }
 
-export async function composeRates(forceRefresh: boolean = false): Promise<RatesBundle> {
+export async function composeRates(forceRefresh: boolean = false, requestId: string): Promise<RatesBundle> {
   const allRates: RatesBundle = {}
   const providerNotes: string[] = []
 
@@ -86,11 +86,11 @@ export async function composeRates(forceRefresh: boolean = false): Promise<Rates
 
   // Fetch missing providers in parallel
   const [bcvResult, frankfurterResult, publicFxResult, alternativeVesResult, colombianPesoResult] = await Promise.allSettled([
-    needsVes ? getBCVRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
-    needsEur ? getFrankfurterRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
-    needsCop || needsEur ? getPublicFxRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
-    needsVes ? getAlternativeVESRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
-    needsCop ? getColombianPesoRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult)
+    needsVes ? getBCVRates(requestId) : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsEur ? getFrankfurterRates(requestId) : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsCop || needsEur ? getPublicFxRates(requestId) : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsVes ? getAlternativeVESRates(requestId) : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsCop ? getColombianPesoRates(requestId) : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult)
   ])
 
   // Process BCV results

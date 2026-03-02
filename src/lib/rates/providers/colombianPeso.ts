@@ -1,7 +1,9 @@
 import { Rate, RatesBundle, ProviderResult } from '../types'
+import { fetchWithProviderHandling } from '../fetcher'
+import { ProviderError } from '../errors'
 
 // Simplified Colombian Peso provider with reliable sources
-export async function getColombianPesoRates(): Promise<ProviderResult> {
+export async function getColombianPesoRates(requestId: string): Promise<ProviderResult> {
   console.log('ColombianPeso: Starting COP rate fetch...')
 
   const apiKey = process.env.EXCHANGE_RATE_API_KEY || process.env.PUBLIC_FX_API_KEY
@@ -25,7 +27,7 @@ export async function getColombianPesoRates(): Promise<ProviderResult> {
 
   try {
     // Try ExchangeRate.host first (requires API key)
-    const response = await fetch(`https://api.exchangerate.host/latest?base=USD&symbols=COP&access_key=${apiKey}`, {
+    const response = await fetchWithProviderHandling(`https://api.exchangerate.host/latest?base=USD&symbols=COP&access_key=${apiKey}`, 'ExchangeRate.host', requestId, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json'
@@ -33,91 +35,69 @@ export async function getColombianPesoRates(): Promise<ProviderResult> {
       next: { revalidate: 3600 }
     })
 
-    if (response.ok) {
-      const data = await response.json()
-      console.log('ColombianPeso: ExchangeRate.host response:', data)
+    const data = await response.json()
+    console.log(`[${requestId}] ColombianPeso: ExchangeRate.host response:`, data)
 
-      if (data.rates?.COP) {
-        const usdCopRate = data.rates.COP
-        const rates: Partial<RatesBundle> = {
-          'USD-COP': {
-            base: 'USD',
-            quote: 'COP',
-            value: usdCopRate,
-            provider: 'ExchangeRate.host',
-            at: data.date || new Date().toISOString()
-          },
-          'COP-USD': {
-            base: 'COP',
-            quote: 'USD',
-            value: 1 / usdCopRate,
-            provider: 'ExchangeRate.host',
-            at: data.date || new Date().toISOString()
-          }
-        }
-
-        console.log('ColombianPeso: Successfully got COP rates:', rates)
-        return {
-          rates,
+    if (data.rates?.COP) {
+      const usdCopRate = data.rates.COP
+      const rates: Partial<RatesBundle> = {
+        'USD-COP': {
+          base: 'USD',
+          quote: 'COP',
+          value: usdCopRate,
           provider: 'ExchangeRate.host',
-          success: true
+          at: data.date || new Date().toISOString()
+        },
+        'COP-USD': {
+          base: 'COP',
+          quote: 'USD',
+          value: 1 / usdCopRate,
+          provider: 'ExchangeRate.host',
+          at: data.date || new Date().toISOString()
         }
       }
-    }
 
-    console.log('ColombianPeso: ExchangeRate.host failed, trying fallback...')
-
-    // Fallback: Use a reasonable current rate
-    const fallbackRate = 4200.0 // Approximate USD-COP rate
-    const rates: Partial<RatesBundle> = {
-      'USD-COP': {
-        base: 'USD',
-        quote: 'COP',
-        value: fallbackRate,
-        provider: 'Fallback',
-        at: new Date().toISOString()
-      },
-      'COP-USD': {
-        base: 'COP',
-        quote: 'USD',
-        value: 1 / fallbackRate,
-        provider: 'Fallback',
-        at: new Date().toISOString()
+      console.log(`[${requestId}] ColombianPeso: Successfully got COP rates:`, rates)
+      return {
+        rates,
+        provider: 'ExchangeRate.host',
+        success: true
       }
     }
 
-    console.log('ColombianPeso: Using fallback rates:', rates)
-    return {
-      rates,
-      provider: 'Fallback',
-      success: true
-    }
+    throw new ProviderError('Failed to parse COP rates', 'PARSE', 'ExchangeRate.host')
 
   } catch (error) {
-    console.error('ColombianPeso: All sources failed:', error)
+    if (error instanceof ProviderError) {
+      console.warn(`[${requestId}] ColombianPeso provider failed (${error.code}):`, error.message)
+    } else {
+      console.error(`[${requestId}] ColombianPeso: All sources failed:`, error)
+    }
 
-    // Final fallback
+    console.log(`[${requestId}] ColombianPeso: Using fallback rates (4200.0)`)
+
+    // Fallback: Use a reasonable current rate
     const fallbackRate = 4200.0
     const rates: Partial<RatesBundle> = {
       'USD-COP': {
         base: 'USD',
         quote: 'COP',
         value: fallbackRate,
-        provider: 'Emergency-Fallback',
+        provider: 'Fallback',
         at: new Date().toISOString()
       },
       'COP-USD': {
         base: 'COP',
         quote: 'USD',
         value: 1 / fallbackRate,
-        provider: 'Emergency-Fallback',
+        provider: 'Fallback',
         at: new Date().toISOString()
       }
     }
 
     return {
       rates,
-      provider: 'Emergency-Fallback',
+      provider: 'Fallback',
       success: true
     }
   }
