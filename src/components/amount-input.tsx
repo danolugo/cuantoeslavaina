@@ -19,30 +19,31 @@ export function AmountInput({ value, onChange, currency, disabled, variant = 'de
     if (value === 0) {
       setDisplayValue('')
     } else {
-      setDisplayValue(value.toString())
+      setDisplayValue(value.toString().replace('.', ','))
     }
   }, [value])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value
+    // Treat comma as decimal point
+    const inputValue = e.target.value.replace('.', ',')
 
-    // Allow only numbers and one decimal point
-    const cleanValue = inputValue.replace(/[^\d.]/g, '')
+    // Allow only numbers and one comma
+    const cleanValue = inputValue.replace(/[^\d,]/g, '')
 
-    // Ensure only one decimal point
-    const parts = cleanValue.split('.')
+    // Ensure only one comma
+    const parts = cleanValue.split(',')
     const normalizedValue = parts.length > 2
-      ? parts[0] + '.' + parts.slice(1).join('')
+      ? parts[0] + ',' + parts.slice(1).join('')
       : cleanValue
 
     setDisplayValue(normalizedValue)
 
-    // Parse the numeric value
-    const numericValue = parseFloat(normalizedValue)
+    // Parse the numeric value internally as float (with dot)
+    const numericValue = parseFloat(normalizedValue.replace(',', '.'))
 
     if (!isNaN(numericValue) && numericValue >= 0) {
       onChange(numericValue)
-    } else if (normalizedValue === '' || normalizedValue === '.') {
+    } else if (normalizedValue === '' || normalizedValue === ',') {
       onChange(0)
     }
   }
