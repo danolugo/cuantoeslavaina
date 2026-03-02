@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { composeRates } from '@/lib/rates/compose'
 import { RatesResponse } from '@/lib/rates/types'
+import { singleflight } from '@/lib/utils/singleflight'
 
 // Force dynamic rendering since we read searchParams from request.url
 export const dynamic = 'force-dynamic'
@@ -12,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // If force refresh, disable cache for this request
     if (forceRefresh) {
-      const rates = await composeRates()
+      const rates = await singleflight.do('rates:v1', composeRates)
       const providerNotes: string[] = []
 
       return NextResponse.json({
@@ -29,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Normal cached request
-    const rates = await composeRates()
+    const rates = await singleflight.do('rates:v1', composeRates)
     const providerNotes: string[] = []
 
     return NextResponse.json({
