@@ -6,6 +6,8 @@ export interface Rate {
   value: number
   provider: string
   at: string
+  confidence?: 'high' | 'low'
+  stale?: boolean
 }
 
 export type RatesBundle = Record<string, Rate>

@@ -4,20 +4,25 @@ import { getFrankfurterRates } from './providers/frankfurter'
 import { getPublicFxRates } from './providers/publicFx'
 import { getAlternativeVESRates } from './providers/alternativeVes'
 import { getColombianPesoRates } from './providers/colombianPeso'
-import { cache, TTL_2_HOURS, TTL_12_HOURS } from '../cache'
+import { cache, TTL_2_HOURS, TTL_12_HOURS, TTL_5_MINS } from '../cache'
 
 export function createRateKey(base: Currency, quote: Currency): string {
   return `${base}-${quote}`
 }
 
 export function getInverseRate(rate: Rate): Rate {
-  return {
+  const inverseRate: Rate = {
     base: rate.quote,
     quote: rate.base,
     value: 1 / rate.value,
     provider: rate.provider,
     at: rate.at
   }
+
+  if (rate.stale) inverseRate.stale = true
+  if (rate.confidence) inverseRate.confidence = rate.confidence
+
+  return inverseRate
 }
 
 export function roundToSignificantDigits(value: number, digits: number = 6): number {
@@ -41,13 +46,18 @@ export function computeCrossRate(
   const crossValue = rate1.value * rate2.value
   const roundedValue = roundToSignificantDigits(crossValue)
 
-  return {
+  const rate: Rate = {
     base: targetBase,
     quote: targetQuote,
     value: roundedValue,
     provider: `${rate1.provider}+${rate2.provider}`,
     at: new Date().toISOString()
   }
+
+  if (rate1.stale || rate2.stale) rate.stale = true
+  if (rate1.confidence === 'low' || rate2.confidence === 'low') rate.confidence = 'low'
+
+  return rate
 }
 
 export async function composeRates(forceRefresh: boolean = false, requestId: string): Promise<RatesBundle> {
@@ -166,7 +176,9 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
         quote: 'VES',
         value: 195.0, // Updated approximate rate (October 2024)
         provider: 'Fallback',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
+        confidence: 'low',
+        stale: true
       }
       allRates['VES-USD'] = getInverseRate(allRates['USD-VES'])
     }
@@ -177,7 +189,9 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
         quote: 'COP',
         value: 4200.0, // Updated approximate rate (October 2024)
         provider: 'Fallback',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
+        confidence: 'low',
+        stale: true
       }
       allRates['COP-USD'] = getInverseRate(allRates['USD-COP'])
     }
@@ -188,7 +202,9 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
         quote: 'USD',
         value: 1.08, // Approximate rate (October 2024)
         provider: 'Fallback',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
+        confidence: 'low',
+        stale: true
       }
       allRates['USD-EUR'] = getInverseRate(allRates['EUR-USD'])
     }
@@ -250,7 +266,13 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
   // Save ALL evaluated rates to the cache with correct TTL
   for (const [key, rate] of Object.entries(allRates)) {
     const isVes = key.includes('VES')
-    const ttl = isVes ? TTL_2_HOURS : TTL_12_HOURS
+    let ttl = isVes ? TTL_2_HOURS : TTL_12_HOURS
+
+    // Fallbacks and low confidence rates get very short TTL
+    if (rate.confidence === 'low' || rate.provider.includes('Fallback')) {
+      ttl = TTL_5_MINS
+    }
+
     await cache.set(key, rate, ttl)
   }
 

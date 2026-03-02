@@ -15,8 +15,8 @@ export async function getColombianPesoRates(requestId: string): Promise<Provider
       console.warn('WARNING: API key is missing. Disabling ExchangeRate.host provider in development.')
       return {
         rates: {
-          'USD-COP': { base: 'USD', quote: 'COP', value: 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString() },
-          'COP-USD': { base: 'COP', quote: 'USD', value: 1 / 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString() }
+          'USD-COP': { base: 'USD', quote: 'COP', value: 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString(), confidence: 'low' },
+          'COP-USD': { base: 'COP', quote: 'USD', value: 1 / 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString(), confidence: 'low' }
         },
         provider: 'ExchangeRate.host-Disabled',
         success: false,
@@ -84,14 +84,16 @@ export async function getColombianPesoRates(requestId: string): Promise<Provider
         quote: 'COP',
         value: fallbackRate,
         provider: 'Fallback',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
+        confidence: 'low'
       },
       'COP-USD': {
         base: 'COP',
         quote: 'USD',
         value: 1 / fallbackRate,
         provider: 'Fallback',
-        at: new Date().toISOString()
+        at: new Date().toISOString(),
+        confidence: 'low'
       }
     }
 
