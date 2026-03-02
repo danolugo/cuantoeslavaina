@@ -1,4 +1,4 @@
-import { Currency, Rate, RatesBundle, ProviderResult } from './types'
+import { Currency, Rate, RatesBundle, ProviderResult, RateProviderError } from './types'
 import { getBCVRates } from './providers/bcv'
 import { getFrankfurterRates } from './providers/frankfurter'
 import { getPublicFxRates } from './providers/publicFx'
@@ -60,9 +60,9 @@ export function computeCrossRate(
   return rate
 }
 
-export async function composeRates(forceRefresh: boolean = false, requestId: string): Promise<RatesBundle> {
+export async function composeRates(forceRefresh: boolean = false, requestId: string): Promise<{ rates: RatesBundle; errors: RateProviderError[] }> {
   const allRates: RatesBundle = {}
-  const providerNotes: string[] = []
+  const errors: RateProviderError[] = []
 
   let needsVes = true
   let needsEur = true
@@ -90,7 +90,7 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
     }
 
     if (!needsVes && !needsEur && !needsCop) {
-      providerNotes.push('Loaded core pairs entirely from cache')
+      // Loaded core pairs entirely from cache
     }
   }
 
@@ -106,46 +106,36 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
   // Process BCV results
   if (bcvResult.status === 'fulfilled' && bcvResult.value.success) {
     Object.assign(allRates, bcvResult.value.rates)
-    providerNotes.push(`BCV: ${Object.keys(bcvResult.value.rates).length} rates`)
   } else {
-    const error = bcvResult.status === 'rejected' ? bcvResult.reason?.message : bcvResult.value?.error
-    providerNotes.push(`BCV: Failed (${error})`)
+    errors.push({ provider: 'BCV', message: 'Failed to fetch rates' })
   }
 
   // Process Frankfurter results
   if (frankfurterResult.status === 'fulfilled' && frankfurterResult.value.success) {
     Object.assign(allRates, frankfurterResult.value.rates)
-    providerNotes.push(`Frankfurter: ${Object.keys(frankfurterResult.value.rates).length} rates`)
   } else {
-    const error = frankfurterResult.status === 'rejected' ? frankfurterResult.reason?.message : frankfurterResult.value?.error
-    providerNotes.push(`Frankfurter: Failed (${error})`)
+    errors.push({ provider: 'Frankfurter', message: 'Failed to fetch rates' })
   }
 
   // Process Public FX results
   if (publicFxResult.status === 'fulfilled' && publicFxResult.value.success) {
     Object.assign(allRates, publicFxResult.value.rates)
-    providerNotes.push(`PublicFX: ${Object.keys(publicFxResult.value.rates).length} rates`)
   } else {
-    const error = publicFxResult.status === 'rejected' ? publicFxResult.reason?.message : publicFxResult.value?.error
-    providerNotes.push(`PublicFX: Failed (${error})`)
+    errors.push({ provider: 'PublicFX', message: 'Failed to fetch rates' })
   }
 
   // Process Alternative VES results
   if (alternativeVesResult.status === 'fulfilled' && alternativeVesResult.value.success) {
     Object.assign(allRates, alternativeVesResult.value.rates)
-    providerNotes.push(`Alternative-VES: ${Object.keys(alternativeVesResult.value.rates).length} rates`)
   } else {
-    const error = alternativeVesResult.status === 'rejected' ? alternativeVesResult.reason?.message : alternativeVesResult.value?.error
-    providerNotes.push(`Alternative-VES: Failed (${error})`)
+    errors.push({ provider: 'Alternative-VES', message: 'Failed to fetch rates' })
   }
 
   // Process Colombian Peso results
   if (colombianPesoResult.status === 'fulfilled' && colombianPesoResult.value.success) {
     Object.assign(allRates, colombianPesoResult.value.rates)
-    providerNotes.push(`Colombian-Peso: ${Object.keys(colombianPesoResult.value.rates).length} rates`)
   } else {
-    const error = colombianPesoResult.status === 'rejected' ? colombianPesoResult.reason?.message : colombianPesoResult.value?.error
-    providerNotes.push(`Colombian-Peso: Failed (${error})`)
+    errors.push({ provider: 'Colombian-Peso', message: 'Failed to fetch rates' })
   }
 
   // Add inverse rates for all direct rates
@@ -162,12 +152,11 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
   const missingEssential = essentialRates.filter(rate => !allRates[rate])
 
   if (missingEssential.length > 0) {
-    providerNotes.push(`Adding fallback rates for: ${missingEssential.join(', ')}`)
+    // Adding fallback rates
   }
 
   // Add fallback rates if we have very few rates
   if (Object.keys(allRates).length < 4) {
-    providerNotes.push('Using fallback rates due to limited data')
 
     // Add some reasonable fallback rates for testing
     if (!allRates['USD-VES']) {
@@ -229,7 +218,6 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
           if (crossRate) {
             allRates['COP-VES'] = crossRate
             allRates['VES-COP'] = getInverseRate(crossRate)
-            providerNotes.push('COP-VES: Computed via COP-USD × USD-VES')
           }
         }
       }
@@ -245,7 +233,6 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
       if (crossRate) {
         allRates['EUR-VES'] = crossRate
         allRates['VES-EUR'] = getInverseRate(crossRate)
-        providerNotes.push('EUR-VES: Computed via EUR-USD × USD-VES')
       }
     }
   }
@@ -258,7 +245,6 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
       if (crossRate) {
         allRates['EUR-COP'] = crossRate
         allRates['COP-EUR'] = getInverseRate(crossRate)
-        providerNotes.push('EUR-COP: Computed via EUR-USD × USD-COP')
       }
     }
   }
@@ -276,7 +262,7 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
     await cache.set(key, rate, ttl)
   }
 
-  return allRates
+  return { rates: allRates, errors }
 }
 
 export function convert(

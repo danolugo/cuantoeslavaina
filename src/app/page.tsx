@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { CurrencySelect } from '@/components/currency-select'
 import { AmountInput } from '@/components/amount-input'
 import { ResultCard } from '@/components/result-card'
-import { Currency, RatesResponse, CURRENCY_INFO } from '@/lib/rates/types'
+import { Currency, RatesResponseV1, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
 import { ArrowLeft, Settings, ArrowDownUp, RefreshCw, AlertCircle } from 'lucide-react'
 
@@ -14,7 +14,7 @@ const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
 export default function HomePage() {
   const [baseCurrency, setBaseCurrency] = useState<Currency>('VES')
   const [amount, setAmount] = useState<number>(1)
-  const [rates, setRates] = useState<RatesResponse | null>(null)
+  const [rates, setRates] = useState<RatesResponseV1 | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,7 +30,7 @@ export default function HomePage() {
         throw new Error('Error al cargar las tasas de cambio')
       }
 
-      const data: RatesResponse = await response.json()
+      const data: RatesResponseV1 = await response.json()
       setRates(data)
       setError(null)
     } catch (err) {

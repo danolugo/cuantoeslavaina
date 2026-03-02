@@ -12,10 +12,17 @@ export interface Rate {
 
 export type RatesBundle = Record<string, Rate>
 
-export interface RatesResponse {
-  at: string
-  providerNotes: string[]
+export interface RateProviderError {
+  provider: string
+  message: string
+}
+
+export interface RatesResponseV1 {
+  version: 1
+  fetchedAt: string
+  cache: 'session' | 'server' | 'live'
   rates: RatesBundle
+  errors: RateProviderError[]
 }
 
 export interface ProviderResult {

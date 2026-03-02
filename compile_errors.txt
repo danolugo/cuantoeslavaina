@@ -1,0 +1,1 @@
+src/app/page.tsx(8,20): error TS2724: '"@/lib/rates/types"' has no exported member named 'RatesResponse'. Did you mean 'RatesResponseV1'?

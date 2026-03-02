@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { composeRates } from '@/lib/rates/compose'
-import { RatesResponse } from '@/lib/rates/types'
+import { RatesResponseV1 } from '@/lib/rates/types'
 import { singleflight } from '@/lib/utils/singleflight'
 
 // Force dynamic rendering since we read searchParams from request.url
@@ -18,13 +18,12 @@ export async function GET(request: NextRequest) {
       const sessionCookie = request.cookies.get('rates_session')
       if (sessionCookie?.value) {
         try {
-          const sessionData = JSON.parse(sessionCookie.value) as RatesResponse
-          const ageMs = Date.now() - new Date(sessionData.at).getTime()
+          const sessionData = JSON.parse(sessionCookie.value) as RatesResponseV1
+          const ageMs = Date.now() - new Date(sessionData.fetchedAt).getTime()
 
           // If session is fresh (< 2 hours), return it immediately
           if (ageMs < 2 * 60 * 60 * 1000) {
-            sessionData.providerNotes.push('Loaded from Session Cookie')
-            return NextResponse.json(sessionData)
+            return NextResponse.json({ ...sessionData, cache: 'session' })
           }
         } catch (e) {
           console.warn('Failed to parse rates_session cookie', e)
@@ -35,13 +34,14 @@ export async function GET(request: NextRequest) {
     // If force refresh, disable cache for this request
     if (forceRefresh) {
       console.log(`[${requestId}] Force refresh triggered`)
-      const rates = await singleflight.do('rates:v1:refresh', () => composeRates(true, requestId))
-      const providerNotes: string[] = []
+      const { rates, errors } = await singleflight.do('rates:v1:refresh', () => composeRates(true, requestId))
 
-      const responsePayload: RatesResponse = {
-        at: new Date().toISOString(),
-        providerNotes,
-        rates
+      const responsePayload: RatesResponseV1 = {
+        version: 1,
+        fetchedAt: new Date().toISOString(),
+        cache: 'live',
+        rates,
+        errors
       }
 
       const response = NextResponse.json(responsePayload, {
@@ -68,13 +68,14 @@ export async function GET(request: NextRequest) {
 
     // Normal cached request
     console.log(`[${requestId}] Serving default caching logic`)
-    const rates = await singleflight.do('rates:v1', () => composeRates(false, requestId))
-    const providerNotes: string[] = []
+    const { rates, errors } = await singleflight.do('rates:v1', () => composeRates(false, requestId))
 
-    const responsePayload: RatesResponse = {
-      at: new Date().toISOString(),
-      providerNotes,
-      rates
+    const responsePayload: RatesResponseV1 = {
+      version: 1,
+      fetchedAt: new Date().toISOString(),
+      cache: 'server',
+      rates,
+      errors
     }
 
     const response = NextResponse.json(responsePayload)
@@ -95,14 +96,14 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error(`[${requestId}] Rates API error:`, error)
 
-    return NextResponse.json(
-      {
-        error: 'Failed to fetch exchange rates',
-        at: new Date().toISOString(),
-        providerNotes: ['All providers failed'],
-        rates: {}
-      },
-      { status: 500 }
-    )
+    const errorResponse: RatesResponseV1 = {
+      version: 1,
+      fetchedAt: new Date().toISOString(),
+      cache: 'live',
+      rates: {},
+      errors: [{ provider: 'System', message: 'Failed to fetch exchange rates: ' + (error instanceof Error ? error.message : 'Unknown') }]
+    }
+
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
