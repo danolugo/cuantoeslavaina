@@ -1,8 +1,10 @@
 import { InMemoryCache } from './memory'
-import { CacheAdapter } from './types'
+import { InMemoryCircuitBreaker } from './breaker'
+import { CacheAdapter, CircuitBreakerAdapter } from './types'
 
 // Default to in-memory, can be swapped to Redis later seamlessly
 export const cache: CacheAdapter = new InMemoryCache()
+export const circuitBreaker: CircuitBreakerAdapter = new InMemoryCircuitBreaker()
 
 // TTL Constants
 export const TTL_2_HOURS = 2 * 60 * 60 * 1000

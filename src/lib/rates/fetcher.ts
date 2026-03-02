@@ -1,4 +1,5 @@
 import { ProviderError, ProviderErrorCode } from './errors'
+import { circuitBreaker } from '../cache'
 
 interface FetchOptions extends RequestInit {
     timeoutMs?: number
@@ -12,6 +13,13 @@ export async function fetchWithProviderHandling(
     options: FetchOptions = {}
 ): Promise<Response> {
     const { timeoutMs = 8000, retries = 2, ...fetchOptions } = options
+
+    // Circuit Breaker Fast-Fail Check
+    const breakerState = await circuitBreaker.getState(providerName)
+    if (breakerState.openUntil && Date.now() < breakerState.openUntil) {
+        console.warn(`[${requestId}] ${providerName} fetch rejected. Circuit Breaker is OPEN.`)
+        throw new ProviderError('Provider Circuit Breaker is OPEN', 'NETWORK', providerName)
+    }
 
     for (let attempt = 0; attempt <= retries; attempt++) {
         const startTime = performance.now()
@@ -39,15 +47,19 @@ export async function fetchWithProviderHandling(
                 console.warn(`[${requestId}] ${providerName} (Attempt ${attempt + 1}) - HTTP ${response.status} in ${durationMs}ms`)
 
                 if (attempt === retries) {
+                    // Trip breaker on persistent 5xx server errors
+                    if (response.status >= 500) await circuitBreaker.recordFailure(providerName, 60000, 3)
                     throw new ProviderError(`HTTP ${response.status} from ${url}`, code, providerName, response.status)
                 }
 
-                // Wait before retry
-                await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)))
+                // Wait before retry with exponential backoff + jitter
+                const delayMs = Math.min(500 * Math.pow(2, attempt), 5000) + Math.random() * 200
+                await new Promise(resolve => setTimeout(resolve, delayMs))
                 continue
             }
 
             // Success
+            await circuitBreaker.recordSuccess(providerName)
             console.log(`[${requestId}] ${providerName} fetch successful in ${durationMs}ms`)
             return response
 
@@ -71,11 +83,15 @@ export async function fetchWithProviderHandling(
                     code = 'NETWORK'
                 }
 
+                // Trip circuit breaker on persistent network timeouts/failures down to the metal
+                await circuitBreaker.recordFailure(providerName, 60000, 3)
+
                 throw new ProviderError(error.message || 'Fetch failed', code, providerName)
             }
 
-            // Wait before retry
-            await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)))
+            // Wait before retry with exponential backoff + jitter
+            const delayMs = Math.min(500 * Math.pow(2, attempt), 5000) + Math.random() * 200
+            await new Promise(resolve => setTimeout(resolve, delayMs))
         }
     }
 
