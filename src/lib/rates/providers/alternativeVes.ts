@@ -34,7 +34,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
           ...options.headers
         }
       })
-      
+
       if (response.ok) {
         return response
       }
@@ -49,7 +49,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 
 function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
-  
+
   // Multiple patterns to try for USD/VES
   const usdPatterns = [
     // XE.com patterns
@@ -63,7 +63,7 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     /1\s*USD\s*=\s*([\d,\.]+)\s*Bolívar/i,
     /Dólar\s*=\s*([\d,\.]+)\s*Bolívar/i
   ]
-  
+
   for (const pattern of usdPatterns) {
     const match = html.match(pattern)
     if (match) {
@@ -80,22 +80,22 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
       }
     }
   }
-  
+
   return rates
 }
 
 function parseVESFromJSON(data: any, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
-  
+
   try {
     let usdVesRate: number | null = null
-    
+
     if (source === 'CurrencyAPI') {
       if (data.data?.VES?.value) {
         usdVesRate = data.data.VES.value
       }
     }
-    
+
     if (usdVesRate && usdVesRate > 50 && usdVesRate < 1000) {
       rates['USD-VES'] = {
         base: 'USD',
@@ -108,7 +108,7 @@ function parseVESFromJSON(data: any, source: string): Partial<RatesBundle> {
   } catch (error) {
     console.warn(`Failed to parse ${source} JSON response:`, error)
   }
-  
+
   return rates
 }
 
@@ -116,7 +116,21 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
   const apiKey = process.env.PUBLIC_FX_API_KEY
-  
+
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: PUBLIC_FX_API_KEY environment variable is required in production')
+    } else {
+      console.warn('WARNING: PUBLIC_FX_API_KEY is missing. Disabling AlternativeVES provider in development.')
+      return {
+        rates: {},
+        provider: 'Alternative-VES-Disabled',
+        success: false,
+        error: 'Disabled in dev due to missing API key'
+      }
+    }
+  }
+
   // Try multiple sources in parallel
   const sourcePromises = ALTERNATIVE_VES_SOURCES.map(async (source) => {
     // Skip sources that require API key if we don't have one
@@ -128,19 +142,19 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
         error: 'API key required but not provided'
       }
     }
-    
+
     try {
       let url = source.url
-      
+
       // Add API key to URL if required
       if (source.name === 'CurrencyAPI' && apiKey) {
         url = `${source.url}&apikey=${apiKey}`
       }
-      
+
       const response = await fetchWithRetry(url, {
         next: { revalidate: 3600 }
       })
-      
+
       if (source.parseHtml) {
         const html = await response.text()
         const rates = parseVESFromHTML(html, source.name)
@@ -168,9 +182,9 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
       }
     }
   })
-  
+
   const results = await Promise.allSettled(sourcePromises)
-  
+
   // Collect all successful rates
   results.forEach((result) => {
     if (result.status === 'fulfilled' && result.value.success && result.value.rates) {
@@ -180,7 +194,7 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
       errors.push(result.reason?.message || 'Unknown error')
     }
   })
-  
+
   if (allRates.length === 0) {
     return {
       rates: {},
@@ -189,12 +203,12 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
       error: `All sources failed: ${errors.join(', ')}`
     }
   }
-  
+
   // Average rates from multiple sources
   const averagedRates: Partial<RatesBundle> = {}
-  
+
   const usdVesRates = allRates.filter(r => r.base === 'USD' && r.quote === 'VES')
-  
+
   if (usdVesRates.length > 0) {
     const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
     averagedRates['USD-VES'] = {
@@ -205,7 +219,7 @@ export async function getAlternativeVESRates(): Promise<ProviderResult> {
       at: new Date().toISOString()
     }
   }
-  
+
   return {
     rates: averagedRates,
     provider: 'Alternative-VES',
