@@ -21,6 +21,7 @@ export interface RateProviderError {
 export interface RatesResponseV1 {
   version: 1
   fetchedAt: string
+  ageSeconds: number
   cache: 'session' | 'server' | 'live'
   rates: RatesBundle
   errors: RateProviderError[]
