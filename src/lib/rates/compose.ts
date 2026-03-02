@@ -5,6 +5,9 @@ import { getPublicFxRates } from './providers/publicFx'
 import { getAlternativeVESRates } from './providers/alternativeVes'
 import { getColombianPesoRates } from './providers/colombianPeso'
 
+// Bypass TLS verification for Venezuelan domains with incomplete certificate chains
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
+
 export function createRateKey(base: Currency, quote: Currency): string {
   return `${base}-${quote}`
 }
