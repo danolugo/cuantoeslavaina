@@ -2,21 +2,11 @@ import { Rate, RatesBundle, ProviderResult } from '../types'
 import { fetchWithProviderHandling } from '../fetcher'
 import { ProviderError } from '../errors'
 
-// Alternative sources for VES rates
+// Official source for VES rates
 const VES_SOURCES = [
   {
     name: 'BCV Official',
     url: 'https://www.bcv.org.ve/',
-    parseHtml: true
-  },
-  {
-    name: 'DolarToday',
-    url: 'https://dolartoday.com/',
-    parseHtml: true
-  },
-  {
-    name: 'Monitor Dolar',
-    url: 'https://monitordolarvzla.com/',
     parseHtml: true
   }
 ]
@@ -25,21 +15,21 @@ const VES_SOURCES = [
 function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
 
-  // Multiple patterns to try for USD/VES
+  // Try robust patterns that span across their messy divs
   const usdPatterns = [
-    /USD\s*=\s*Bs\.?\s*([\d,\.]+)/i,
-    /Dólar\s*=\s*Bs\.?\s*([\d,\.]+)/i,
-    /USD\s*Bs\.?\s*([\d,\.]+)/i,
-    /Dólar\s*Bs\.?\s*([\d,\.]+)/i,
-    /1\s*USD\s*=\s*([\d,\.]+)\s*Bs/i,
-    /1\s*Dólar\s*=\s*([\d,\.]+)\s*Bs/i
+    /USD[\s\S]*?(?:>|\s)+?([\d,]+,\d+)/i,
+    /Dólar[\s\S]*?(?:>|\s)+?([\d,]+,\d+)/i,
+    /USD\s*=\s*Bs\.?\s*([\d,\.]+)/i
   ]
 
   for (const pattern of usdPatterns) {
     const match = html.match(pattern)
     if (match) {
-      const rate = parseFloat(match[1].replace(/,/g, ''))
-      if (!isNaN(rate) && rate > 0 && rate < 1000000) { // Sanity check
+      // Replace comma with dot for JS parsing, remove any existing dots used as thousands separators if necessary
+      const cleanString = match[1].replace(/\./g, '').replace(',', '.')
+      const rate = parseFloat(cleanString)
+
+      if (!isNaN(rate) && rate > 0 && rate < 10000) { // Sanity check
         rates['USD-VES_OFFICIAL'] = {
           base: 'USD',
           quote: 'VES',
@@ -55,19 +45,18 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
 
   // Multiple patterns for EUR/VES
   const eurPatterns = [
-    /EUR\s*=\s*Bs\.?\s*([\d,\.]+)/i,
-    /Euro\s*=\s*Bs\.?\s*([\d,\.]+)/i,
-    /EUR\s*Bs\.?\s*([\d,\.]+)/i,
-    /Euro\s*Bs\.?\s*([\d,\.]+)/i,
-    /1\s*EUR\s*=\s*([\d,\.]+)\s*Bs/i,
-    /1\s*Euro\s*=\s*([\d,\.]+)\s*Bs/i
+    /EUR[\s\S]*?(?:>|\s)+?([\d,]+,\d+)/i,
+    /Euro[\s\S]*?(?:>|\s)+?([\d,]+,\d+)/i,
+    /EUR\s*=\s*Bs\.?\s*([\d,\.]+)/i
   ]
 
   for (const pattern of eurPatterns) {
     const match = html.match(pattern)
     if (match) {
-      const rate = parseFloat(match[1].replace(/,/g, ''))
-      if (!isNaN(rate) && rate > 0 && rate < 1000000) {
+      const cleanString = match[1].replace(/\./g, '').replace(',', '.')
+      const rate = parseFloat(cleanString)
+
+      if (!isNaN(rate) && rate > 0 && rate < 10000) {
         rates['EUR-VES_OFFICIAL'] = {
           base: 'EUR',
           quote: 'VES',
@@ -91,19 +80,34 @@ export async function getBCVRates(requestId: string): Promise<ProviderResult> {
   // Try multiple sources in parallel
   const sourcePromises = VES_SOURCES.map(async (source) => {
     try {
-      const response = await fetchWithProviderHandling(source.url, source.name, requestId, {
-        next: { revalidate: 3600 },
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        }
-      })
+      const https = require('https')
+      const agent = new https.Agent({ rejectUnauthorized: false })
 
-      const html = await response.text()
+      const html = await new Promise<string>((resolve, reject) => {
+        const req = https.get(source.url, {
+          agent,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Connection': 'keep-alive'
+          }
+        }, (res: any) => {
+          if (res.statusCode !== 200) {
+            reject(new ProviderError(`HTTP ${res.statusCode} from ${source.url}`, 'NETWORK', source.name, res.statusCode))
+            return
+          }
+          let data = ''
+          res.on('data', (chunk: string) => data += chunk)
+          res.on('end', () => resolve(data))
+        })
+
+        req.on('error', (e: Error) => reject(e))
+        req.setTimeout(8000, () => {
+          req.destroy()
+          reject(new ProviderError('Timeout', 'NETWORK', source.name))
+        })
+      })
       const rates = parseVESFromHTML(html, source.name)
 
       if (Object.keys(rates).length === 0) {
@@ -163,8 +167,8 @@ export async function getBCVRates(requestId: string): Promise<ProviderResult> {
     averagedRates['USD-VES_OFFICIAL'] = {
       base: 'USD',
       quote: 'VES',
-      value: avgUsdVes,
-      provider: `Average of ${usdVesRates.length} sources`,
+      value: usdVesRates[0].value,
+      provider: usdVesRates[0].provider,
       at: new Date().toISOString(),
       rateType: 'official'
     }
@@ -175,8 +179,8 @@ export async function getBCVRates(requestId: string): Promise<ProviderResult> {
     averagedRates['EUR-VES_OFFICIAL'] = {
       base: 'EUR',
       quote: 'VES',
-      value: avgEurVes,
-      provider: `Average of ${eurVesRates.length} sources`,
+      value: eurVesRates[0].value,
+      provider: eurVesRates[0].provider,
       at: new Date().toISOString(),
       rateType: 'official'
     }

@@ -1,225 +1,88 @@
-import { Rate, RatesBundle, ProviderResult } from '../types'
-import { fetchWithProviderHandling } from '../fetcher'
-import { ProviderError } from '../errors'
-
-// Alternative sources for VES rates that might work better
-const ALTERNATIVE_VES_SOURCES = [
-  {
-    name: 'XE.com',
-    url: 'https://www.xe.com/currencyconverter/convert/?Amount=1&From=USD&To=VES',
-    parseHtml: true
-  },
-  {
-    name: 'Wise.com',
-    url: 'https://wise.com/us/currency-converter/usd-to-ves-rate',
-    parseHtml: true
-  },
-  {
-    name: 'CurrencyAPI',
-    url: 'https://api.currencyapi.com/v3/latest?base_currency=USD&currencies=VES',
-    parseHtml: false
-  }
-]
-
-
-
-function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
-  const rates: Partial<RatesBundle> = {}
-
-  // Multiple patterns to try for USD/VES
-  const usdPatterns = [
-    // XE.com patterns
-    /1\s*USD\s*=\s*([\d,\.]+)\s*VES/i,
-    /USD\s*to\s*VES[^>]*>([\d,\.]+)</i,
-    // Wise.com patterns
-    /1\s*US\s*dollar\s*=\s*([\d,\.]+)\s*VES/i,
-    /USD\s*to\s*VES[^>]*>([\d,\.]+)</i,
-    // Generic patterns
-    /USD\s*=\s*([\d,\.]+)\s*VES/i,
-    /1\s*USD\s*=\s*([\d,\.]+)\s*Bolívar/i,
-    /Dólar\s*=\s*([\d,\.]+)\s*Bolívar/i
-  ]
-
-  for (const pattern of usdPatterns) {
-    const match = html.match(pattern)
-    if (match) {
-      const rate = parseFloat(match[1].replace(/,/g, ''))
-      if (!isNaN(rate) && rate > 50 && rate < 1000) { // Sanity check for reasonable range
-        rates['USD-VES_MARKET'] = {
-          base: 'USD',
-          quote: 'VES',
-          value: rate,
-          provider: source,
-          at: new Date().toISOString(),
-          rateType: 'market'
-        }
-        break
-      }
-    }
-  }
-
-  return rates
-}
-
-function parseVESFromJSON(data: any, source: string): Partial<RatesBundle> {
-  const rates: Partial<RatesBundle> = {}
-
-  try {
-    let usdVesRate: number | null = null
-
-    if (source === 'CurrencyAPI') {
-      if (data.data?.VES?.value) {
-        usdVesRate = data.data.VES.value
-      }
-    }
-
-    if (usdVesRate && usdVesRate > 50 && usdVesRate < 1000) {
-      rates['USD-VES_MARKET'] = {
-        base: 'USD',
-        quote: 'VES',
-        value: usdVesRate,
-        provider: source,
-        at: data.meta?.last_updated_at || new Date().toISOString(),
-        rateType: 'market'
-      }
-    }
-  } catch (error) {
-    console.warn(`Failed to parse ${source} JSON response:`, error)
-  }
-
-  return rates
-}
+import { Rate, ProviderResult } from '../types'
 
 export async function getAlternativeVESRates(requestId: string): Promise<ProviderResult> {
+  const providerName = 'Binance P2P'
   const allRates: Rate[] = []
-  const errors: string[] = []
-  const apiKey = process.env.PUBLIC_FX_API_KEY
 
-  if (!apiKey) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: PUBLIC_FX_API_KEY environment variable is required in production')
-    } else {
-      console.warn('WARNING: PUBLIC_FX_API_KEY is missing. Disabling AlternativeVES provider in development.')
-      return {
-        rates: {},
-        provider: 'Alternative-VES-Disabled',
-        success: false,
-        error: 'Disabled in dev due to missing API key'
-      }
-    }
-  }
+  try {
+    const url = 'https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search'
 
-  // Try multiple sources in parallel
-  const sourcePromises = ALTERNATIVE_VES_SOURCES.map(async (source) => {
-    // Skip sources that require API key if we don't have one
-    if (source.name === 'CurrencyAPI' && !apiKey) {
-      return {
-        source: source.name,
-        rates: [],
-        success: false,
-        error: 'API key required but not provided'
-      }
+    // We send a POST request to find the top 10 merchants selling USDT for VES
+    const body = {
+      asset: 'USDT',
+      fiat: 'VES',
+      merchantCheck: false,
+      page: 1,
+      rows: 10,
+      payTypes: [],
+      publisherType: null,
+      tradeType: 'BUY' // BUY means we are buying USDT, they are selling
     }
 
-    try {
-      let url = source.url
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 8000)
 
-      // Add API key to URL if required
-      if (source.name === 'CurrencyAPI' && apiKey) {
-        url = `${source.url}&apikey=${apiKey}`
-      }
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal as RequestInit['signal']
+    })
 
-      const response = await fetchWithProviderHandling(url, source.name, requestId, {
-        next: { revalidate: 3600 },
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
-        }
-      })
+    clearTimeout(timeoutId)
 
-      if (source.parseHtml) {
-        const html = await response.text()
-        const rates = parseVESFromHTML(html, source.name)
-        if (Object.keys(rates).length === 0) {
-          throw new ProviderError(`Failed to parse HTML from ${source.name}`, 'PARSE', source.name)
-        }
-        return {
-          source: source.name,
-          rates: Object.values(rates),
-          success: true
-        }
-      } else {
-        const data = await response.json()
-        const rates = parseVESFromJSON(data, source.name)
-        if (Object.keys(rates).length === 0) {
-          throw new ProviderError(`Failed to parse JSON from ${source.name}`, 'PARSE', source.name)
-        }
-        return {
-          source: source.name,
-          rates: Object.values(rates),
-          success: true
-        }
-      }
-    } catch (error) {
-      if (error instanceof ProviderError) {
-        console.warn(`[${requestId}] ${source.name} failed (${error.code}):`, error.message)
-      } else {
-        console.warn(`[${requestId}] ${source.name} failed:`, error)
-      }
-      return {
-        source: source.name,
-        rates: [],
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} from Binance P2P`)
     }
-  })
 
-  const results = await Promise.allSettled(sourcePromises)
+    const data = await response.json()
 
-  // Collect all successful rates
-  results.forEach((result) => {
-    if (result.status === 'fulfilled' && result.value.success && result.value.rates) {
-      const ratesArray = Object.values(result.value.rates).filter((rate): rate is Rate => rate !== undefined)
-      allRates.push(...ratesArray)
-    } else if (result.status === 'rejected') {
-      errors.push(result.reason?.message || 'Unknown error')
+    if (!data?.data || !Array.isArray(data.data) || data.data.length === 0) {
+      throw new Error('No P2P offers found from Binance')
     }
-  })
 
-  if (allRates.length === 0) {
-    return {
-      rates: {},
-      provider: 'Alternative-VES',
-      success: false,
-      error: `All sources failed: ${errors.join(', ')}`
+    // Extract prices from top 10 offers
+    const prices = data.data.map((item: any) => parseFloat(item.adv.price))
+
+    // Validate prices
+    const validPrices = prices.filter((p: number) => !isNaN(p) && p > 50 && p < 2000)
+
+    if (validPrices.length === 0) {
+      throw new Error('No valid price ranges found in Binance P2P data')
     }
-  }
 
-  // Average rates from multiple sources
-  const averagedRates: Partial<RatesBundle> = {}
+    // Calculate Average
+    const sum = validPrices.reduce((a: number, b: number) => a + b, 0)
+    const avgPrice = sum / validPrices.length
 
-  const usdVesRates = allRates.filter(r => r.base === 'USD' && r.quote === 'VES')
-
-  if (usdVesRates.length > 0) {
-    const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
-    averagedRates['USD-VES_MARKET'] = {
+    allRates.push({
       base: 'USD',
       quote: 'VES',
-      value: avgUsdVes,
-      provider: `Average of ${usdVesRates.length} sources`,
+      value: avgPrice,
+      provider: `${providerName} (Avg of ${validPrices.length})`,
       at: new Date().toISOString(),
       rateType: 'market'
+    })
+
+    return {
+      rates: {
+        'USD-VES_MARKET': allRates[0]
+      },
+      provider: providerName,
+      success: true
+    }
+
+  } catch (error) {
+    console.warn(`[${requestId}] ${providerName} failed:`, error)
+    return {
+      rates: {},
+      provider: providerName,
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
-
-  return {
-    rates: averagedRates,
-    provider: 'Alternative-VES',
-    success: true
-  }
 }
+

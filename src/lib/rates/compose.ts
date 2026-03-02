@@ -178,7 +178,7 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
       allRates['USD-VES_OFFICIAL'] = {
         base: 'USD',
         quote: 'VES',
-        value: 195.0, // Updated approximate rate (October 2024)
+        value: 420.0, // Updated approximate rate (October 2024)
         provider: 'Fallback',
         at: new Date().toISOString(),
         confidence: 'low',
@@ -192,7 +192,7 @@ export async function composeRates(forceRefresh: boolean = false, requestId: str
       allRates['USD-VES_MARKET'] = {
         base: 'USD',
         quote: 'VES',
-        value: 198.0,
+        value: 615.0,
         provider: 'Fallback',
         at: new Date().toISOString(),
         confidence: 'low',
