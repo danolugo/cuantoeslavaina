@@ -20,6 +20,7 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null)
   const [exchangeMode, setExchangeMode] = useState<'buy' | 'sell'>('buy')
   const [hasConverted, setHasConverted] = useState<boolean>(false)
+  const [vesBaseRateType, setVesBaseRateType] = useState<'official' | 'market'>('official')
 
   const fetchRates = async (forceRefresh = false) => {
     try {
@@ -57,8 +58,10 @@ export default function HomePage() {
   const sortedCurrencies = otherCurrencies.sort((a, b) => {
     if (!rates?.rates) return 0
 
-    const amountA = convert(amount, baseCurrency, a, rates.rates, exchangeMode)
-    const amountB = convert(amount, baseCurrency, b, rates.rates, exchangeMode)
+    const resolvedRateType = baseCurrency === 'VES' ? vesBaseRateType : 'official'
+
+    const amountA = convert(amount, baseCurrency, a, rates.rates, exchangeMode, resolvedRateType)
+    const amountB = convert(amount, baseCurrency, b, rates.rates, exchangeMode, resolvedRateType)
 
     const valueA = amountA ?? 0
     const valueB = amountB ?? 0
@@ -115,6 +118,30 @@ export default function HomePage() {
             <div className="flex justify-between items-center text-xs text-white/40 mt-1">
               <span>Selector de moneda base</span>
             </div>
+
+            {/* Base VES Rate Type Toggle */}
+            {baseCurrency === 'VES' && (
+              <div className="mt-4 flex gap-2">
+                <button
+                  onClick={() => {
+                    setVesBaseRateType('official')
+                    setHasConverted(false)
+                  }}
+                  className={`flex-1 py-1.5 rounded text-xs font-semibold transition-colors ${vesBaseRateType === 'official' ? 'bg-white/20 text-white' : 'bg-black/20 text-white/50 hover:bg-black/40'}`}
+                >
+                  Tasa Oficial (BCV)
+                </button>
+                <button
+                  onClick={() => {
+                    setVesBaseRateType('market')
+                    setHasConverted(false)
+                  }}
+                  className={`flex-1 py-1.5 rounded text-xs font-semibold transition-colors ${vesBaseRateType === 'market' ? 'bg-white/20 text-white' : 'bg-black/20 text-white/50 hover:bg-black/40'}`}
+                >
+                  Tasa Paralela
+                </button>
+              </div>
+            )}
           </div>
 
           <div className="py-2">
@@ -183,12 +210,50 @@ export default function HomePage() {
           <div className="pt-4">
             <div className="space-y-0">
               {sortedCurrencies.map(currency => {
+                const resolvedBaseRateType = baseCurrency === 'VES' ? vesBaseRateType : 'official'
+
+                if (currency === 'VES') {
+                  // Render two cards for VES target (Official and Market)
+                  const amtOfficial = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, exchangeMode, 'official') : null
+                  const amtMarket = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, exchangeMode, 'market') : null
+
+                  const rateOfficialKey = `${baseCurrency}-VES_OFFICIAL`
+                  const rateMarketKey = `${baseCurrency}-VES_MARKET`
+
+                  // Inverse logic for lookup might be needed if falling back to cross rates
+                  const rateOfficial = rates?.rates?.[rateOfficialKey] || (amtOfficial ? { base: baseCurrency, quote: 'VES', value: amtOfficial / amount, provider: 'Computed', at: new Date().toISOString(), rateType: 'official' as const } : null)
+                  const rateMarket = rates?.rates?.[rateMarketKey] || (amtMarket ? { base: baseCurrency, quote: 'VES', value: amtMarket / amount, provider: 'Computed', at: new Date().toISOString(), rateType: 'market' as const } : null)
+
+                  return (
+                    <div key={currency} className="space-y-0">
+                      <ResultCard
+                        currency={currency}
+                        amount={amtOfficial || 0}
+                        rate={rateOfficial}
+                        isLoading={isLoading}
+                        exchangeMode={exchangeMode}
+                      />
+                      <ResultCard
+                        currency={currency}
+                        amount={amtMarket || 0}
+                        rate={rateMarket}
+                        isLoading={isLoading}
+                        exchangeMode={exchangeMode}
+                      />
+                    </div>
+                  )
+                }
+
                 const convertedAmount = rates?.rates
-                  ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode)
+                  ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode, resolvedBaseRateType)
                   : null
 
-                const rateKey = `${baseCurrency}-${currency}` as keyof typeof rates.rates
-                const rate = rates?.rates?.[rateKey] || null
+                // For non-VES, we try exact key or reconstruct
+                const prefix = baseCurrency === 'VES' ? `${baseCurrency}-${currency}_${resolvedBaseRateType.toUpperCase()}` : `${baseCurrency}-${currency}`
+                const exactRate = rates?.rates?.[prefix]
+
+                // Fallback computed rate for display if cross converted
+                const rate = exactRate || (convertedAmount ? { base: baseCurrency, quote: currency, value: convertedAmount / amount, provider: 'Computed', at: new Date().toISOString() } : null)
 
                 return (
                   <ResultCard

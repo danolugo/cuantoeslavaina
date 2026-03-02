@@ -45,12 +45,13 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     if (match) {
       const rate = parseFloat(match[1].replace(/,/g, ''))
       if (!isNaN(rate) && rate > 50 && rate < 1000) { // Sanity check for reasonable range
-        rates['USD-VES'] = {
+        rates['USD-VES_MARKET'] = {
           base: 'USD',
           quote: 'VES',
           value: rate,
           provider: source,
-          at: new Date().toISOString()
+          at: new Date().toISOString(),
+          rateType: 'market'
         }
         break
       }
@@ -73,12 +74,13 @@ function parseVESFromJSON(data: any, source: string): Partial<RatesBundle> {
     }
 
     if (usdVesRate && usdVesRate > 50 && usdVesRate < 1000) {
-      rates['USD-VES'] = {
+      rates['USD-VES_MARKET'] = {
         base: 'USD',
         quote: 'VES',
         value: usdVesRate,
         provider: source,
-        at: data.meta?.last_updated_at || new Date().toISOString()
+        at: data.meta?.last_updated_at || new Date().toISOString(),
+        rateType: 'market'
       }
     }
   } catch (error) {
@@ -205,12 +207,13 @@ export async function getAlternativeVESRates(requestId: string): Promise<Provide
 
   if (usdVesRates.length > 0) {
     const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
-    averagedRates['USD-VES'] = {
+    averagedRates['USD-VES_MARKET'] = {
       base: 'USD',
       quote: 'VES',
       value: avgUsdVes,
       provider: `Average of ${usdVesRates.length} sources`,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
+      rateType: 'market'
     }
   }
 

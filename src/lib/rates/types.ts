@@ -6,6 +6,7 @@ export interface Rate {
   value: number
   provider: string
   at: string
+  rateType?: 'official' | 'market'
   confidence?: 'high' | 'low'
   stale?: boolean
 }

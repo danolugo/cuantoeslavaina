@@ -59,6 +59,10 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
   const formattedAmount = formatCurrency(amount, currency)
   const rateText = `1 ${rate.base} = ${formatRate(rate.value, rate.base, rate.quote)} ${rate.quote}`
 
+  const titleDisplay = rate.rateType
+    ? `${rate.base} to ${currency} (${rate.rateType === 'official' ? 'BCV' : 'Paralelo'})`
+    : `${rate.base} to ${currency}`
+
   return (
     <div className="group relative bg-white/[0.02] hover:bg-white/[0.04] backdrop-blur-md border border-white/5 hover:border-white/10 transition-all duration-300 rounded-2xl overflow-hidden mb-3">
       <div className="absolute inset-0 bg-gradient-to-r from-neo-blue/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -75,7 +79,7 @@ export function ResultCard({ currency, amount, rate, isLoading, exchangeMode = '
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <span className="font-semibold text-white text-[15px] tracking-wide">
-                {rate.base} to {currency}
+                {titleDisplay}
               </span>
             </div>
             <div className="flex items-center gap-1.5 text-xs text-white/50">

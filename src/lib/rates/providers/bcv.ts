@@ -40,12 +40,13 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     if (match) {
       const rate = parseFloat(match[1].replace(/,/g, ''))
       if (!isNaN(rate) && rate > 0 && rate < 1000000) { // Sanity check
-        rates['USD-VES'] = {
+        rates['USD-VES_OFFICIAL'] = {
           base: 'USD',
           quote: 'VES',
           value: rate,
           provider: source,
-          at: new Date().toISOString()
+          at: new Date().toISOString(),
+          rateType: 'official'
         }
         break
       }
@@ -67,12 +68,13 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     if (match) {
       const rate = parseFloat(match[1].replace(/,/g, ''))
       if (!isNaN(rate) && rate > 0 && rate < 1000000) {
-        rates['EUR-VES'] = {
+        rates['EUR-VES_OFFICIAL'] = {
           base: 'EUR',
           quote: 'VES',
           value: rate,
           provider: source,
-          at: new Date().toISOString()
+          at: new Date().toISOString(),
+          rateType: 'official'
         }
         break
       }
@@ -158,23 +160,25 @@ export async function getBCVRates(requestId: string): Promise<ProviderResult> {
 
   if (usdVesRates.length > 0) {
     const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
-    averagedRates['USD-VES'] = {
+    averagedRates['USD-VES_OFFICIAL'] = {
       base: 'USD',
       quote: 'VES',
       value: avgUsdVes,
       provider: `Average of ${usdVesRates.length} sources`,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
+      rateType: 'official'
     }
   }
 
   if (eurVesRates.length > 0) {
     const avgEurVes = eurVesRates.reduce((sum, r) => sum + r.value, 0) / eurVesRates.length
-    averagedRates['EUR-VES'] = {
+    averagedRates['EUR-VES_OFFICIAL'] = {
       base: 'EUR',
       quote: 'VES',
       value: avgEurVes,
       provider: `Average of ${eurVesRates.length} sources`,
-      at: new Date().toISOString()
+      at: new Date().toISOString(),
+      rateType: 'official'
     }
   }
 
