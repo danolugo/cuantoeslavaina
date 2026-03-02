@@ -34,12 +34,20 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
           ...options.headers
         }
       })
-      
+
       if (response.ok) {
         return response
       }
-    } catch (error) {
-      console.warn(`Attempt ${i + 1} failed for ${url}:`, error)
+    } catch (error: any) {
+      if (error?.cause?.code === 'UNABLE_TO_VERIFY_LEAF_SIGNATURE' || error?.cause?.code === 'CERT_HAS_EXPIRED') {
+        const hostname = new URL(url).hostname
+        console.error(`\n[TLS Error] Hostname: ${hostname}`)
+        console.error(`[TLS Error] Details: ${error.cause.message} (${error.cause.code})`)
+        console.error(`[TLS Error] Proposed Safe Fix: 1) Swap provider to an official structured API. 2) Provide a custom CA bundle for this domain. 3) Use an explicit https.Agent or undici dispatcher with 'rejectUnauthorized: false' scoped exclusively to this host.\n`)
+        throw error // Fast fail for TLS
+      }
+
+      console.warn(`Attempt ${i + 1} failed for ${url}:`, error.message || error)
       if (i === retries - 1) throw error
       await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)))
     }
@@ -49,7 +57,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 
 function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
-  
+
   // Multiple patterns to try for USD/VES
   const usdPatterns = [
     /USD\s*=\s*Bs\.?\s*([\d,\.]+)/i,
@@ -59,7 +67,7 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     /1\s*USD\s*=\s*([\d,\.]+)\s*Bs/i,
     /1\s*Dólar\s*=\s*([\d,\.]+)\s*Bs/i
   ]
-  
+
   for (const pattern of usdPatterns) {
     const match = html.match(pattern)
     if (match) {
@@ -76,7 +84,7 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
       }
     }
   }
-  
+
   // Multiple patterns for EUR/VES
   const eurPatterns = [
     /EUR\s*=\s*Bs\.?\s*([\d,\.]+)/i,
@@ -86,7 +94,7 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
     /1\s*EUR\s*=\s*([\d,\.]+)\s*Bs/i,
     /1\s*Euro\s*=\s*([\d,\.]+)\s*Bs/i
   ]
-  
+
   for (const pattern of eurPatterns) {
     const match = html.match(pattern)
     if (match) {
@@ -103,24 +111,24 @@ function parseVESFromHTML(html: string, source: string): Partial<RatesBundle> {
       }
     }
   }
-  
+
   return rates
 }
 
 export async function getBCVRates(): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
-  
+
   // Try multiple sources in parallel
   const sourcePromises = VES_SOURCES.map(async (source) => {
     try {
       const response = await fetchWithRetry(source.url, {
         next: { revalidate: 3600 }
       })
-      
+
       const html = await response.text()
       const rates = parseVESFromHTML(html, source.name)
-      
+
       return {
         source: source.name,
         rates: Object.values(rates),
@@ -136,9 +144,9 @@ export async function getBCVRates(): Promise<ProviderResult> {
       }
     }
   })
-  
+
   const results = await Promise.allSettled(sourcePromises)
-  
+
   // Collect all successful rates
   results.forEach((result) => {
     if (result.status === 'fulfilled' && result.value.success && result.value.rates) {
@@ -148,7 +156,7 @@ export async function getBCVRates(): Promise<ProviderResult> {
       errors.push(result.reason?.message || 'Unknown error')
     }
   })
-  
+
   if (allRates.length === 0) {
     return {
       rates: {},
@@ -157,14 +165,14 @@ export async function getBCVRates(): Promise<ProviderResult> {
       error: `All sources failed: ${errors.join(', ')}`
     }
   }
-  
+
   // Average rates from multiple sources
   const averagedRates: Partial<RatesBundle> = {}
-  
+
   // Group rates by currency pair
   const usdVesRates = allRates.filter(r => r.base === 'USD' && r.quote === 'VES')
   const eurVesRates = allRates.filter(r => r.base === 'EUR' && r.quote === 'VES')
-  
+
   if (usdVesRates.length > 0) {
     const avgUsdVes = usdVesRates.reduce((sum, r) => sum + r.value, 0) / usdVesRates.length
     averagedRates['USD-VES'] = {
@@ -175,7 +183,7 @@ export async function getBCVRates(): Promise<ProviderResult> {
       at: new Date().toISOString()
     }
   }
-  
+
   if (eurVesRates.length > 0) {
     const avgEurVes = eurVesRates.reduce((sum, r) => sum + r.value, 0) / eurVesRates.length
     averagedRates['EUR-VES'] = {
@@ -186,7 +194,7 @@ export async function getBCVRates(): Promise<ProviderResult> {
       at: new Date().toISOString()
     }
   }
-  
+
   return {
     rates: averagedRates,
     provider: 'BCV-Multiple',

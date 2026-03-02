@@ -35,7 +35,7 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
           ...options.headers
         }
       })
-      
+
       if (response.ok) {
         return response
       }
@@ -50,12 +50,12 @@ async function fetchWithRetry(url: string, options: RequestInit = {}, retries = 
 
 function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
   const rates: Partial<RatesBundle> = {}
-  
+
   try {
     // Handle different response formats
     let usdCopRate: number | null = null
     let eurUsdRate: number | null = null
-    
+
     if (source === 'ExchangeRate.host') {
       if (data.rates?.COP) usdCopRate = data.rates.COP
       if (data.rates?.EUR) eurUsdRate = data.rates.EUR
@@ -69,7 +69,7 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
       if (data.rates?.COP) usdCopRate = data.rates.COP
       if (data.rates?.EUR) eurUsdRate = data.rates.EUR
     }
-    
+
     // Add USD-COP rate
     if (usdCopRate && usdCopRate > 0) {
       rates['USD-COP'] = {
@@ -79,7 +79,7 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
         provider: source,
         at: data.date || new Date().toISOString()
       }
-      
+
       rates['COP-USD'] = {
         base: 'COP',
         quote: 'USD',
@@ -88,7 +88,7 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
         at: data.date || new Date().toISOString()
       }
     }
-    
+
     // Add EUR-USD rate (if not already available from Frankfurter)
     if (eurUsdRate && eurUsdRate > 0) {
       rates['EUR-USD'] = {
@@ -98,7 +98,7 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
         provider: source,
         at: data.date || new Date().toISOString()
       }
-      
+
       rates['USD-EUR'] = {
         base: 'USD',
         quote: 'EUR',
@@ -107,11 +107,11 @@ function parseFxResponse(data: any, source: string): Partial<RatesBundle> {
         at: data.date || new Date().toISOString()
       }
     }
-    
+
   } catch (error) {
     console.warn(`Failed to parse ${source} response:`, error)
   }
-  
+
   return rates
 }
 
@@ -119,7 +119,21 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
   const allRates: Rate[] = []
   const errors: string[] = []
   const apiKey = process.env.PUBLIC_FX_API_KEY
-  
+
+  if (!apiKey) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: PUBLIC_FX_API_KEY environment variable is required in production')
+    } else {
+      console.warn('WARNING: PUBLIC_FX_API_KEY is missing. Disabling PublicFX provider in development.')
+      return {
+        rates: {},
+        provider: 'PublicFX-Disabled',
+        success: false,
+        error: 'Disabled in dev due to missing API key'
+      }
+    }
+  }
+
   // Try multiple sources in parallel
   const sourcePromises = FX_SOURCES.map(async (source) => {
     // Skip sources that require API key if we don't have one
@@ -131,10 +145,10 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
         error: 'API key required but not provided'
       }
     }
-    
+
     try {
       let url = source.url
-      
+
       // Add API key to URL if required
       if (source.requiresKey && apiKey) {
         if (source.name === 'CurrencyAPI') {
@@ -143,14 +157,14 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
           url = `${source.url}&app_id=${apiKey}`
         }
       }
-      
+
       const response = await fetchWithRetry(url, {
         next: { revalidate: 3600 }
       })
-      
+
       const data = await response.json()
       const rates = parseFxResponse(data, source.name)
-      
+
       return {
         source: source.name,
         rates: Object.values(rates),
@@ -166,9 +180,9 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       }
     }
   })
-  
+
   const results = await Promise.allSettled(sourcePromises)
-  
+
   // Collect all successful rates
   results.forEach((result) => {
     if (result.status === 'fulfilled' && result.value.success && result.value.rates) {
@@ -178,7 +192,7 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       errors.push(result.reason?.message || 'Unknown error')
     }
   })
-  
+
   if (allRates.length === 0) {
     return {
       rates: {},
@@ -187,14 +201,14 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       error: `All sources failed: ${errors.join(', ')}`
     }
   }
-  
+
   // Average rates from multiple sources
   const averagedRates: Partial<RatesBundle> = {}
-  
+
   // Group rates by currency pair
   const usdCopRates = allRates.filter(r => r.base === 'USD' && r.quote === 'COP')
   const eurUsdRates = allRates.filter(r => r.base === 'EUR' && r.quote === 'USD')
-  
+
   if (usdCopRates.length > 0) {
     const avgUsdCop = usdCopRates.reduce((sum, r) => sum + r.value, 0) / usdCopRates.length
     averagedRates['USD-COP'] = {
@@ -204,7 +218,7 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       provider: `Average of ${usdCopRates.length} sources`,
       at: new Date().toISOString()
     }
-    
+
     averagedRates['COP-USD'] = {
       base: 'COP',
       quote: 'USD',
@@ -213,7 +227,7 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       at: new Date().toISOString()
     }
   }
-  
+
   if (eurUsdRates.length > 0) {
     const avgEurUsd = eurUsdRates.reduce((sum, r) => sum + r.value, 0) / eurUsdRates.length
     averagedRates['EUR-USD'] = {
@@ -223,7 +237,7 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       provider: `Average of ${eurUsdRates.length} sources`,
       at: new Date().toISOString()
     }
-    
+
     averagedRates['USD-EUR'] = {
       base: 'USD',
       quote: 'EUR',
@@ -232,7 +246,7 @@ export async function getPublicFxRates(): Promise<ProviderResult> {
       at: new Date().toISOString()
     }
   }
-  
+
   return {
     rates: averagedRates,
     provider: 'PublicFX-Multiple',
