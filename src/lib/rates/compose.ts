@@ -1,9 +1,10 @@
-import { Currency, Rate, RatesBundle } from './types'
+import { Currency, Rate, RatesBundle, ProviderResult } from './types'
 import { getBCVRates } from './providers/bcv'
 import { getFrankfurterRates } from './providers/frankfurter'
 import { getPublicFxRates } from './providers/publicFx'
 import { getAlternativeVESRates } from './providers/alternativeVes'
 import { getColombianPesoRates } from './providers/colombianPeso'
+import { cache, TTL_2_HOURS, TTL_12_HOURS } from '../cache'
 
 export function createRateKey(base: Currency, quote: Currency): string {
   return `${base}-${quote}`
@@ -49,17 +50,47 @@ export function computeCrossRate(
   }
 }
 
-export async function composeRates(): Promise<RatesBundle> {
+export async function composeRates(forceRefresh: boolean = false): Promise<RatesBundle> {
   const allRates: RatesBundle = {}
   const providerNotes: string[] = []
 
-  // Fetch from all providers in parallel
+  let needsVes = true
+  let needsEur = true
+  let needsCop = true
+
+  const ALL_PAIRS = [
+    'USD-VES', 'VES-USD', 'EUR-USD', 'USD-EUR', 'USD-COP', 'COP-USD',
+    'EUR-VES', 'VES-EUR', 'EUR-COP', 'COP-EUR', 'COP-VES', 'VES-COP'
+  ]
+
+  if (!forceRefresh) {
+    const cachedUsdVes = await cache.get<Rate>('USD-VES')
+    const cachedEurUsd = await cache.get<Rate>('EUR-USD')
+    const cachedUsdCop = await cache.get<Rate>('USD-COP')
+
+    needsVes = !cachedUsdVes
+    needsEur = !cachedEurUsd
+    needsCop = !cachedUsdCop
+
+    for (const pair of ALL_PAIRS) {
+      const cached = await cache.get<Rate>(pair)
+      if (cached) {
+        allRates[pair] = cached
+      }
+    }
+
+    if (!needsVes && !needsEur && !needsCop) {
+      providerNotes.push('Loaded core pairs entirely from cache')
+    }
+  }
+
+  // Fetch missing providers in parallel
   const [bcvResult, frankfurterResult, publicFxResult, alternativeVesResult, colombianPesoResult] = await Promise.allSettled([
-    getBCVRates(),
-    getFrankfurterRates(),
-    getPublicFxRates(),
-    getAlternativeVESRates(),
-    getColombianPesoRates()
+    needsVes ? getBCVRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsEur ? getFrankfurterRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsCop || needsEur ? getPublicFxRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsVes ? getAlternativeVESRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult),
+    needsCop ? getColombianPesoRates() : Promise.resolve({ success: true, rates: {}, provider: 'Cached' } as ProviderResult)
   ])
 
   // Process BCV results
@@ -214,6 +245,13 @@ export async function composeRates(): Promise<RatesBundle> {
         providerNotes.push('EUR-COP: Computed via EUR-USD × USD-COP')
       }
     }
+  }
+
+  // Save ALL evaluated rates to the cache with correct TTL
+  for (const [key, rate] of Object.entries(allRates)) {
+    const isVes = key.includes('VES')
+    const ttl = isVes ? TTL_2_HOURS : TTL_12_HOURS
+    await cache.set(key, rate, ttl)
   }
 
   return allRates

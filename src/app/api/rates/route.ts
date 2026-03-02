@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
 
     // If force refresh, disable cache for this request
     if (forceRefresh) {
-      const rates = await singleflight.do('rates:v1', composeRates)
+      const rates = await singleflight.do('rates:v1:refresh', () => composeRates(true))
       const providerNotes: string[] = []
 
       return NextResponse.json({
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Normal cached request
-    const rates = await singleflight.do('rates:v1', composeRates)
+    const rates = await singleflight.do('rates:v1', () => composeRates(false))
     const providerNotes: string[] = []
 
     return NextResponse.json({
