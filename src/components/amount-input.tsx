@@ -14,7 +14,7 @@ interface AmountInputProps {
 
 export function AmountInput({ value, onChange, currency, disabled, variant = 'default' }: AmountInputProps) {
   const [displayValue, setDisplayValue] = useState('')
-  
+
   useEffect(() => {
     if (value === 0) {
       setDisplayValue('')
@@ -22,31 +22,31 @@ export function AmountInput({ value, onChange, currency, disabled, variant = 'de
       setDisplayValue(value.toString())
     }
   }, [value])
-  
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value
-    
+
     // Allow only numbers and one decimal point
     const cleanValue = inputValue.replace(/[^\d.]/g, '')
-    
+
     // Ensure only one decimal point
     const parts = cleanValue.split('.')
-    const normalizedValue = parts.length > 2 
+    const normalizedValue = parts.length > 2
       ? parts[0] + '.' + parts.slice(1).join('')
       : cleanValue
-    
+
     setDisplayValue(normalizedValue)
-    
+
     // Parse the numeric value
     const numericValue = parseFloat(normalizedValue)
-    
+
     if (!isNaN(numericValue) && numericValue >= 0) {
       onChange(numericValue)
     } else if (normalizedValue === '' || normalizedValue === '.') {
       onChange(0)
     }
   }
-  
+
   if (variant === 'display') {
     return (
       <Input
@@ -54,9 +54,9 @@ export function AmountInput({ value, onChange, currency, disabled, variant = 'de
         type="text"
         value={displayValue}
         onChange={handleChange}
-        placeholder="0"
+        placeholder="0.00"
         disabled={disabled}
-        className="h-auto min-h-[2.5rem] py-1 text-foreground font-bold bg-transparent border-0 shadow-none focus-visible:ring-2 focus-visible:ring-primary/20 rounded-lg text-[clamp(1.75rem,8vw,2.75rem)] leading-none tracking-tight"
+        className="h-auto py-1 text-white font-bold bg-transparent border-0 shadow-none focus-visible:ring-0 rounded-none text-[3.5rem] md:text-[4rem] leading-none tracking-tight px-0 placeholder:text-white/20"
         aria-label="Cantidad a convertir"
       />
     )
@@ -64,20 +64,20 @@ export function AmountInput({ value, onChange, currency, disabled, variant = 'de
 
   return (
     <div className="space-y-2">
-      <label htmlFor="amount" className="text-sm font-medium text-foreground">
+      <label htmlFor="amount" className="text-sm font-medium text-muted-foreground">
         Cantidad
       </label>
-      <div className="relative">
+      <div className="relative border border-white/10 rounded-2xl bg-white/5 backdrop-blur-md focus-within:ring-2 focus-within:ring-neo-blue focus-within:border-neo-blue transition-all">
         <Input
           id="amount"
           type="text"
           value={displayValue}
           onChange={handleChange}
-          placeholder="0"
+          placeholder="0.00"
           disabled={disabled}
-          className="h-12 text-lg font-semibold bg-card border border-border shadow-sm focus:shadow-md transition-shadow focus:ring-2 focus:ring-primary/20 rounded-xl pr-16"
+          className="h-14 text-lg font-semibold bg-transparent border-0 shadow-none focus-visible:ring-0 px-4 pr-16 text-white placeholder:text-white/30"
         />
-        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm font-semibold text-muted-foreground">
+        <div className="absolute right-4 top-1/2 transform -translate-y-1/2 text-sm font-bold text-white/50">
           {currency}
         </div>
       </div>

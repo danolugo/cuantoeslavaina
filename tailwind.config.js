@@ -17,9 +17,8 @@ module.exports = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
-        mono: ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
-        serif: ["var(--font-source-code-pro)", "Source Code Pro", "monospace"],
+        sans: ["var(--font-outfit)", "var(--font-inter)", "sans-serif"],
+        mono: ["var(--font-source-code-pro)", "monospace"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -55,11 +54,24 @@ module.exports = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // Custom neon/dark colors
+        'app-bg': '#040B16',
+        'neo-blue': '#0066FF',
+        'neo-cyan': '#00C2FF',
+        'glass': 'rgba(255, 255, 255, 0.03)',
+        'glass-border': 'rgba(255, 255, 255, 0.08)',
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        '2xl': '1rem',
+        '3xl': '1.5rem',
+        '4xl': '2rem',
+      },
+      backgroundImage: {
+        'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',
+        'neo-gradient': 'linear-gradient(to right, #0066FF, #00C2FF)',
       },
       keyframes: {
         "accordion-down": {

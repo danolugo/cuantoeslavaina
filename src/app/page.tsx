@@ -1,16 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CurrencySelect } from '@/components/currency-select'
 import { AmountInput } from '@/components/amount-input'
 import { ResultCard } from '@/components/result-card'
-import { Currency, RatesResponse, Rate, CURRENCY_INFO } from '@/lib/rates/types'
+import { Currency, RatesResponse, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
-import { timeAgo } from '@/utils/timeago'
-import { RefreshCw, AlertCircle } from 'lucide-react'
-import { ThemeSwitcher } from '@/components/theme-switcher'
+import { ArrowLeft, Settings, ArrowDownUp, RefreshCw, AlertCircle } from 'lucide-react'
 
 const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
 
@@ -22,16 +19,17 @@ export default function HomePage() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [exchangeMode, setExchangeMode] = useState<'buy' | 'sell'>('buy')
+  const [hasConverted, setHasConverted] = useState<boolean>(false)
 
   const fetchRates = async (forceRefresh = false) => {
     try {
       const url = forceRefresh ? '/api/rates?refresh=true' : '/api/rates'
       const response = await fetch(url)
-      
+
       if (!response.ok) {
         throw new Error('Error al cargar las tasas de cambio')
       }
-      
+
       const data: RatesResponse = await response.json()
       setRates(data)
       setError(null)
@@ -58,174 +56,171 @@ export default function HomePage() {
   // Sort currencies by their converted values (highest to lowest)
   const sortedCurrencies = otherCurrencies.sort((a, b) => {
     if (!rates?.rates) return 0
-    
+
     const amountA = convert(amount, baseCurrency, a, rates.rates, exchangeMode)
     const amountB = convert(amount, baseCurrency, b, rates.rates, exchangeMode)
-    
-    // Handle null values by treating them as 0 for sorting
+
     const valueA = amountA ?? 0
     const valueB = amountB ?? 0
-    
+
     return valueB - valueA
   })
 
-  const renderConverterTab = () => (
-    <div className="space-y-5 pb-4">
-      {/* Cantidad a convertir - design-inspired card */}
-      <Card className="border border-border bg-card shadow-sm rounded-xl overflow-hidden">
-        <CardContent className="p-5">
-          <p className="text-sm text-muted-foreground mb-2 font-medium">Cantidad a convertir</p>
-          <div className="min-h-[3rem] flex flex-col justify-center">
-            <AmountInput
-              value={amount}
-              onChange={setAmount}
-              currency={baseCurrency}
+  return (
+    <div className="min-h-screen bg-app-bg text-white relative overflow-x-hidden font-sans">
+      {/* Background Abstract Glows */}
+      <div className="absolute top-[-10%] left-[-20%] w-[70%] h-[50%] bg-neo-blue/20 blur-[120px] rounded-full pointer-events-none" />
+      <div className="absolute top-[40%] right-[-20%] w-[50%] h-[50%] bg-neo-cyan/10 blur-[120px] rounded-full pointer-events-none" />
+
+      {/* Top Navigation */}
+      <div className="pt-safe relative z-10">
+        <div className="flex items-center justify-between px-6 py-4">
+          <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white transition-colors">
+            <ArrowLeft className="w-5 h-5 text-white/70" />
+          </Button>
+          <h1 className="text-xl font-medium tracking-wide">Cuantoeslavaina</h1>
+          <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white/5 border border-white/10 hover:bg-white/10 hover:text-white transition-colors">
+            <Settings className="w-5 h-5 text-white/70" />
+          </Button>
+        </div>
+      </div>
+
+      <main className="px-5 pb-24 pb-safe max-w-lg mx-auto space-y-6 relative z-10">
+        {/* Main Exchange Card Area */}
+        <div className="space-y-2 mt-4">
+
+          {/* FROM Input Box */}
+          <div className="glass-card p-5 relative overflow-visible">
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[11px] font-bold text-white/50 tracking-widest uppercase">Desde:</span>
+              <div className="flex items-center gap-2 bg-white/10 hover:bg-white/20 transition-colors cursor-pointer border border-white/10 rounded-full px-3 py-1.5 shadow-inner">
+                <span className="text-sm shadow-sm">{CURRENCY_INFO[baseCurrency].flag}</span>
+                <span className="text-sm font-bold tracking-wide">{baseCurrency}</span>
+              </div>
+            </div>
+
+            <div className="min-h-[4.5rem] flex items-center">
+              <AmountInput
+                value={amount}
+                onChange={(val) => {
+                  setAmount(val)
+                  setHasConverted(false)
+                }}
+                currency={baseCurrency}
+                disabled={isLoading}
+                variant="display"
+              />
+            </div>
+
+            <div className="flex justify-between items-center text-xs text-white/40 mt-1">
+              <span>Selector de moneda base</span>
+            </div>
+          </div>
+
+          <div className="py-2">
+            <CurrencySelect
+              value={baseCurrency}
+              onChange={(val) => {
+                setBaseCurrency(val)
+                setHasConverted(false)
+              }}
               disabled={isLoading}
-              variant="display"
             />
           </div>
-          <p className="text-base font-medium text-primary mt-1">
-            {baseCurrency === 'VES' && 'Bs. '}
-            {({ VES: 'Bolívares', USD: 'Dólares', EUR: 'Euros', COP: 'Pesos' } as const)[baseCurrency]}
-          </p>
-        </CardContent>
-      </Card>
 
-      {/* Moneda de origen - horizontal buttons */}
-      <div>
-        <p className="text-sm text-muted-foreground mb-3 font-medium">Moneda de origen</p>
-        <CurrencySelect
-          value={baseCurrency}
-          onChange={setBaseCurrency}
-          disabled={isLoading}
-        />
-      </div>
-
-      {/* Tipo de cambio - Buy/Sell */}
-      <div>
-        <p className="text-sm text-muted-foreground mb-2 font-medium">Tipo de cambio</p>
-        <div className="flex items-center gap-2 bg-muted rounded-xl p-1">
-          <Button
-            variant={exchangeMode === 'buy' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setExchangeMode('buy')}
-            disabled={isLoading}
-            className={`flex-1 h-11 font-medium rounded-lg ${exchangeMode === 'buy' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
-          >
-            Compra
-          </Button>
-          <Button
-            variant={exchangeMode === 'sell' ? 'default' : 'ghost'}
-            size="sm"
-            onClick={() => setExchangeMode('sell')}
-            disabled={isLoading}
-            className={`flex-1 h-11 font-medium rounded-lg ${exchangeMode === 'sell' ? 'bg-primary text-primary-foreground shadow-sm' : 'hover:bg-muted-foreground/10'}`}
-          >
-            Venta
-          </Button>
-        </div>
-      </div>
-
-      {/* Status and Refresh */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted px-3 py-2 rounded-xl">
-          <div className={`w-2 h-2 rounded-full ${rates ? 'bg-green-500' : 'bg-yellow-500'}`} />
-          <span>{rates ? `Actualizado ${timeAgo(rates.at)}` : 'Cargando tasas...'}</span>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-10 px-4 rounded-xl"
-          onClick={handleRefresh}
-          disabled={isLoading || isRefreshing}
-        >
-          <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-          Actualizar
-        </Button>
-      </div>
-
-      {/* Error State */}
-      {error && (
-        <Card className="border-destructive/50 bg-destructive/10 shadow-sm">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 text-destructive">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <span className="font-medium text-sm">{error}</span>
+          {/* Controls: Swap Action, Refresh */}
+          <div className="flex items-center justify-between px-2 pt-2">
+            {/* Exchange mode toggle (Compra/Venta) styled like a sleek switch */}
+            <div className="flex bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
+              <button
+                onClick={() => setExchangeMode('buy')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${exchangeMode === 'buy' ? 'bg-neo-blue text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
+              >
+                COMPRA
+              </button>
+              <button
+                onClick={() => setExchangeMode('sell')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${exchangeMode === 'sell' ? 'bg-neo-blue text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
+              >
+                VENTA
+              </button>
             </div>
-          </CardContent>
-        </Card>
-      )}
 
-      {/* Results - Tasas de cambio */}
-      {rates && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-foreground">Tasas de cambio</h2>
-            <div className="text-xs text-muted-foreground bg-muted px-2.5 py-1 rounded-lg">
-              {otherCurrencies.length} monedas
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full w-10 h-10 bg-white/5 border border-white/10 hover:bg-neo-blue/20 hover:text-white transition-colors"
+              onClick={handleRefresh}
+              disabled={isLoading || isRefreshing}
+            >
+              <RefreshCw className={`w-4 h-4 text-white/70 ${isRefreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
+
+          {/* Confirm Swap Button */}
+          <div className="pt-6 pb-2">
+            <button
+              onClick={() => setHasConverted(true)}
+              disabled={!rates || isLoading}
+              className="w-full py-4 rounded-2xl bg-neo-gradient text-white font-bold text-lg tracking-wide shadow-[0_4px_20px_rgba(0,102,255,0.4)] transition-transform active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Convertir
+            </button>
+          </div>
+
+        </div>
+
+        {/* Error State */}
+        {error && (
+          <div className="glass-card p-4 border-destructive/50 bg-destructive/20 text-white flex items-center gap-3">
+            <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0" />
+            <span className="font-medium text-sm">{error}</span>
+          </div>
+        )}
+
+        {/* Recent Results Section */}
+        {hasConverted && rates && (
+          <div className="pt-4">
+            <div className="space-y-0">
+              {sortedCurrencies.map(currency => {
+                const convertedAmount = rates?.rates
+                  ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode)
+                  : null
+
+                const rateKey = `${baseCurrency}-${currency}` as keyof typeof rates.rates
+                const rate = rates?.rates?.[rateKey] || null
+
+                return (
+                  <ResultCard
+                    key={currency}
+                    currency={currency}
+                    amount={convertedAmount || 0}
+                    rate={rate}
+                    isLoading={isLoading}
+                    exchangeMode={exchangeMode}
+                  />
+                )
+              })}
             </div>
           </div>
-          
-          <div className="space-y-2.5">
-            {sortedCurrencies.map(currency => {
-              const convertedAmount = rates?.rates 
-                ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode)
-                : null
-              
-              const rateKey = `${baseCurrency}-${currency}` as keyof typeof rates.rates
-              const rate = rates?.rates?.[rateKey] || null
-              
-              return (
-                <ResultCard
-                  key={currency}
-                  currency={currency}
-                  amount={convertedAmount || 0}
-                  rate={rate}
-                  isLoading={isLoading}
-                  exchangeMode={exchangeMode}
-                />
-              )
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Provider Notes */}
-      {rates?.providerNotes && rates.providerNotes.length > 0 && (
-        <Card className="bg-muted border border-border shadow-sm">
-          <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">
-              <strong className="text-foreground font-medium">Data Sources:</strong> {rates.providerNotes.join(', ')}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Mobile Header - design-inspired: title, actualizado, theme toggle */}
-      <div className="border-b border-border bg-card pt-safe">
-        <div className="flex items-center justify-between p-4">
-          <div>
-            <h1 className="text-xl font-bold text-foreground tracking-tight">
-              Cuantoeslavaina
-            </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {rates
-                ? `Actualizado ${new Date(rates.at).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`
-                : 'Cargando tasas...'}
-            </p>
-          </div>
-          <ThemeSwitcher />
-        </div>
-      </div>
-
-      {/* Main Content - Mobile First with safe area */}
-      <main className="p-4 pb-8 pb-safe max-w-lg mx-auto space-y-4">
-        {renderConverterTab()}
+        )}
       </main>
+
+      {/* Mock Bottom App Bar to complete the look */}
+      <div className="fixed bottom-0 left-0 right-0 h-20 bg-[#040B16]/80 backdrop-blur-xl border-t border-white/5 z-50 flex items-center justify-around px-6 pb-safe">
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
+        </div>
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
+        </div>
+        <div className="w-14 h-14 rounded-full bg-neo-blue/20 flex items-center justify-center text-neo-cyan border border-neo-blue/50 cursor-pointer shadow-[0_0_15px_rgba(0,102,255,0.3)]">
+          <ArrowDownUp className="w-6 h-6" />
+        </div>
+        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
+          <Settings className="w-6 h-6" />
+        </div>
+      </div>
     </div>
   )
 }
