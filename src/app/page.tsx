@@ -85,7 +85,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <main className="px-5 pb-24 pb-safe max-w-lg mx-auto space-y-6 relative z-10">
+      <main className="px-5 pb-10 pb-safe max-w-lg mx-auto space-y-6 relative z-10">
         {/* Main Exchange Card Area */}
         <div className="space-y-2 mt-4">
 
@@ -206,21 +206,6 @@ export default function HomePage() {
         )}
       </main>
 
-      {/* Mock Bottom App Bar to complete the look */}
-      <div className="fixed bottom-0 left-0 right-0 h-20 bg-[#040B16]/80 backdrop-blur-xl border-t border-white/5 z-50 flex items-center justify-around px-6 pb-safe">
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-        </div>
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="m19 9-5 5-4-4-3 3" /></svg>
-        </div>
-        <div className="w-14 h-14 rounded-full bg-neo-blue/20 flex items-center justify-center text-neo-cyan border border-neo-blue/50 cursor-pointer shadow-[0_0_15px_rgba(0,102,255,0.3)]">
-          <ArrowDownUp className="w-6 h-6" />
-        </div>
-        <div className="w-12 h-12 rounded-full flex items-center justify-center text-white/40 hover:text-white transition-colors cursor-pointer">
-          <Settings className="w-6 h-6" />
-        </div>
-      </div>
     </div>
   )
 }
