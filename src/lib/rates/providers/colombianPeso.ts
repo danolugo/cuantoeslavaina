@@ -6,28 +6,9 @@ import { ProviderError } from '../errors'
 export async function getColombianPesoRates(requestId: string): Promise<ProviderResult> {
   console.log('ColombianPeso: Starting COP rate fetch...')
 
-  const apiKey = process.env.EXCHANGE_RATE_API_KEY || process.env.PUBLIC_FX_API_KEY
-
-  if (!apiKey) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: EXCHANGE_RATE_API_KEY or PUBLIC_FX_API_KEY environment variable is required in production')
-    } else {
-      console.warn('WARNING: API key is missing. Disabling ExchangeRate.host provider in development.')
-      return {
-        rates: {
-          'USD-COP': { base: 'USD', quote: 'COP', value: 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString(), confidence: 'low' },
-          'COP-USD': { base: 'COP', quote: 'USD', value: 1 / 4200.0, provider: 'Fallback-Disabled', at: new Date().toISOString(), confidence: 'low' }
-        },
-        provider: 'ExchangeRate.host-Disabled',
-        success: false,
-        error: 'Disabled in dev due to missing API key'
-      }
-    }
-  }
-
   try {
-    // Try ExchangeRate.host first (requires API key)
-    const response = await fetchWithProviderHandling(`https://api.exchangerate.host/latest?base=USD&symbols=COP&access_key=${apiKey}`, 'ExchangeRate.host', requestId, {
+    // Try ExchangeRate-API (Open Tier) which doesn't require an API key
+    const response = await fetchWithProviderHandling(`https://open.er-api.com/v6/latest/USD`, 'ExchangeRate-API', requestId, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json'
@@ -36,7 +17,7 @@ export async function getColombianPesoRates(requestId: string): Promise<Provider
     })
 
     const data = await response.json()
-    console.log(`[${requestId}] ColombianPeso: ExchangeRate.host response:`, data)
+    console.log(`[${requestId}] ColombianPeso: ExchangeRate-API response:`, data)
 
     if (data.rates?.COP) {
       const usdCopRate = data.rates.COP
@@ -45,27 +26,27 @@ export async function getColombianPesoRates(requestId: string): Promise<Provider
           base: 'USD',
           quote: 'COP',
           value: usdCopRate,
-          provider: 'ExchangeRate.host',
-          at: data.date || new Date().toISOString()
+          provider: 'ExchangeRate-API',
+          at: new Date(data.time_last_update_unix * 1000).toISOString()
         },
         'COP-USD': {
           base: 'COP',
           quote: 'USD',
           value: 1 / usdCopRate,
-          provider: 'ExchangeRate.host',
-          at: data.date || new Date().toISOString()
+          provider: 'ExchangeRate-API',
+          at: new Date(data.time_last_update_unix * 1000).toISOString()
         }
       }
 
       console.log(`[${requestId}] ColombianPeso: Successfully got COP rates:`, rates)
       return {
         rates,
-        provider: 'ExchangeRate.host',
+        provider: 'ExchangeRate-API',
         success: true
       }
     }
 
-    throw new ProviderError('Failed to parse COP rates', 'PARSE', 'ExchangeRate.host')
+    throw new ProviderError('Failed to parse COP rates', 'PARSE', 'ExchangeRate-API')
 
   } catch (error) {
     if (error instanceof ProviderError) {
