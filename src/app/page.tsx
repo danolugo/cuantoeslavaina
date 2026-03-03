@@ -7,7 +7,7 @@ import { AmountInput } from '@/components/amount-input'
 import { ResultCard } from '@/components/result-card'
 import { Currency, RatesResponseV1, CURRENCY_INFO } from '@/lib/rates/types'
 import { convert } from '@/lib/rates/compose'
-import { ArrowLeft, Settings, ArrowDownUp, RefreshCw, AlertCircle } from 'lucide-react'
+import { ArrowLeft, Settings, RefreshCw, AlertCircle } from 'lucide-react'
 
 const CURRENCIES: Currency[] = ['VES', 'USD', 'EUR', 'COP']
 
@@ -18,7 +18,6 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [exchangeMode, setExchangeMode] = useState<'buy' | 'sell'>('buy')
   const [hasConverted, setHasConverted] = useState<boolean>(false)
   const [vesBaseRateType, setVesBaseRateType] = useState<'official' | 'market'>('official')
 
@@ -60,8 +59,8 @@ export default function HomePage() {
 
     const resolvedRateType = baseCurrency === 'VES' ? vesBaseRateType : 'official'
 
-    const amountA = convert(amount, baseCurrency, a, rates.rates, exchangeMode, resolvedRateType)
-    const amountB = convert(amount, baseCurrency, b, rates.rates, exchangeMode, resolvedRateType)
+    const amountA = convert(amount, baseCurrency, a, rates.rates, 'buy', resolvedRateType)
+    const amountB = convert(amount, baseCurrency, b, rates.rates, 'buy', resolvedRateType)
 
     const valueA = amountA ?? 0
     const valueB = amountB ?? 0
@@ -155,24 +154,8 @@ export default function HomePage() {
             />
           </div>
 
-          {/* Controls: Swap Action, Refresh */}
-          <div className="flex items-center justify-between px-2 pt-2">
-            {/* Exchange mode toggle (Compra/Venta) styled like a sleek switch */}
-            <div className="flex bg-white/5 p-1 rounded-full border border-white/10 shadow-inner">
-              <button
-                onClick={() => setExchangeMode('buy')}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${exchangeMode === 'buy' ? 'bg-neo-blue text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
-              >
-                COMPRA
-              </button>
-              <button
-                onClick={() => setExchangeMode('sell')}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold tracking-wide transition-all ${exchangeMode === 'sell' ? 'bg-neo-blue text-white shadow-lg' : 'text-white/50 hover:text-white/80'}`}
-              >
-                VENTA
-              </button>
-            </div>
-
+          {/* Controls: Refresh */}
+          <div className="flex items-center justify-end px-2 pt-2">
             <Button
               variant="ghost"
               size="icon"
@@ -214,8 +197,8 @@ export default function HomePage() {
 
                 if (currency === 'VES') {
                   // Render two cards for VES target (Official and Market)
-                  const amtOfficial = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, exchangeMode, 'official') : null
-                  const amtMarket = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, exchangeMode, 'market') : null
+                  const amtOfficial = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, 'buy', 'official') : null
+                  const amtMarket = rates?.rates ? convert(amount, baseCurrency, 'VES', rates.rates, 'buy', 'market') : null
 
                   const rateOfficialKey = `${baseCurrency}-VES_OFFICIAL`
                   const rateMarketKey = `${baseCurrency}-VES_MARKET`
@@ -231,21 +214,21 @@ export default function HomePage() {
                         amount={amtOfficial || 0}
                         rate={rateOfficial}
                         isLoading={isLoading}
-                        exchangeMode={exchangeMode}
+                        exchangeMode={'buy'}
                       />
                       <ResultCard
                         currency={currency}
                         amount={amtMarket || 0}
                         rate={rateMarket}
                         isLoading={isLoading}
-                        exchangeMode={exchangeMode}
+                        exchangeMode={'buy'}
                       />
                     </div>
                   )
                 }
 
                 const convertedAmount = rates?.rates
-                  ? convert(amount, baseCurrency, currency, rates.rates, exchangeMode, resolvedBaseRateType)
+                  ? convert(amount, baseCurrency, currency, rates.rates, 'buy', resolvedBaseRateType)
                   : null
 
                 // For non-VES, we try exact key or reconstruct
@@ -262,7 +245,7 @@ export default function HomePage() {
                     amount={convertedAmount || 0}
                     rate={rate}
                     isLoading={isLoading}
-                    exchangeMode={exchangeMode}
+                    exchangeMode={'buy'}
                   />
                 )
               })}

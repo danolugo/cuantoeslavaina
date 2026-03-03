@@ -326,11 +326,6 @@ export function convert(
 ): number | null {
   if (from === to) return amount
 
-  // Apply spread: buy rate is higher (you pay more), sell rate is lower (you get less)
-  // Using 1.5% spread (0.015)
-  const spread = 0.015
-  const spreadMultiplier = mode === 'buy' ? (1 + spread) : (1 - spread)
-
   // Determine actual rateType, default to 'official' if VES is involved and no rateType provided
   const hasVes = from === 'VES' || to === 'VES'
   const resolvedRateType = hasVes ? (rateType || 'official') : undefined
@@ -340,8 +335,7 @@ export function convert(
   const directRate = rates[directKey] || (hasVes ? rates[createRateKey(from, to, rateType === 'market' ? 'official' : 'market')] : undefined) // fallback to other type if requested missing
 
   if (directRate) {
-    const adjustedRate = directRate.value * spreadMultiplier
-    return roundToSignificantDigits(amount * adjustedRate, 8)
+    return roundToSignificantDigits(amount * directRate.value, 8)
   }
 
   // 2. Try cross conversion via USD
@@ -353,8 +347,7 @@ export function convert(
 
   if (rateFromUsd && rateUsdTo) {
     const viaUsd = amount * rateFromUsd.value * rateUsdTo.value
-    const adjustedViaUsd = viaUsd * spreadMultiplier
-    return roundToSignificantDigits(adjustedViaUsd, 8)
+    return roundToSignificantDigits(viaUsd, 8)
   }
 
   // 3. Try EUR conversion via USD logic
@@ -366,8 +359,7 @@ export function convert(
 
   if (rateFromEur && rateEurTo) {
     const viaEur = amount * rateFromEur.value * rateEurTo.value
-    const adjustedViaEur = viaEur * spreadMultiplier
-    return roundToSignificantDigits(adjustedViaEur, 8)
+    return roundToSignificantDigits(viaEur, 8)
   }
 
   // Ultimate Fallback: Force route through USD by constructing missing legs
@@ -398,6 +390,5 @@ export function convert(
   }
 
   const universalCross = amount * fallbackRateToUsd * fallbackRateFromUsd
-  const adjustedUniversal = universalCross * spreadMultiplier
-  return roundToSignificantDigits(adjustedUniversal, 8)
+  return roundToSignificantDigits(universalCross, 8)
 }
